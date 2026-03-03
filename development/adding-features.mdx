@@ -1,0 +1,635 @@
+---
+title: Adding Features
+description: How to add new features to Safaris Web following existing patterns and Laravel conventions
+---
+
+## Overview
+
+This guide demonstrates how to add new features to Safaris Web by following the established patterns in the codebase.
+
+## Feature Development Workflow
+
+When adding a new feature, follow this sequence:
+
+1. **Database**: Create migration
+2. **Model**: Create Eloquent model
+3. **Controller**: Create controller with methods
+4. **Routes**: Define routes
+5. **Views**: Create Blade templates
+6. **Test**: Verify functionality
+
+## Example: Adding a "Testimonials" Feature
+
+Let's walk through adding a complete testimonials management system.
+
+### Step 1: Create Migration
+
+```bash
+php artisan make:migration create_testimonials_table
+```
+
+Edit the migration file:
+
+```php database/migrations/xxxx_create_testimonials_table.php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up()
+    {
+        Schema::create('testimonials', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('country');
+            $table->string('image')->nullable();
+            $table->text('content');
+            $table->integer('rating')->default(5);
+            $table->integer('user_id');
+            $table->integer('published')->default(0);
+            $table->timestamps();
+        });
+    }
+
+    public function down()
+    {
+        Schema::dropIfExists('testimonials');
+    }
+};
+```
+
+Run the migration:
+
+```bash
+php artisan migrate
+```
+
+### Step 2: Create Model
+
+```bash
+php artisan make:model Testimonial
+```
+
+Edit the model following existing patterns:
+
+```php app/Models/Testimonial.php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Testimonial extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'name',
+        'country',
+        'image',
+        'content',
+        'rating'
+    ];
+
+    // Relationship to user (creator)
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+}
+```
+
+### Step 3: Create Controller
+
+```bash
+php artisan make:controller TestimonialController --resource
+```
+
+Implement controller methods following the ToursController pattern:
+
+```php app/Http/Controllers/TestimonialController.php
+namespace App\Http\Controllers;
+
+use App\Models\Testimonial;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class TestimonialController extends Controller
+{
+    // Public listing (published only)
+    public function index()
+    {
+        $testimonials = Testimonial::where('published', 1)
+            ->latest()
+            ->paginate(12);
+        return view('testimonials.index', compact('testimonials'));
+    }
+
+    // Admin listing (all testimonials)
+    public function all()
+    {
+        $testimonials = Testimonial::latest()->paginate(20);
+        return view('testimonials.admin', compact('testimonials'))
+            ->with('i', (request()->input('page', 1) - 1) * 5);
+    }
+
+    // Show create form
+    public function create()
+    {
+        return view('testimonials.create');
+    }
+
+    // Store new testimonial
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'country' => 'required|string|max:255',
+            'content' => 'required',
+            'rating' => 'required|integer|min:1|max:5',
+            'image' => 'nullable|mimes:jpg,jpeg,png,webp|max:2048',
+        ]);
+
+        $testimonial = new Testimonial();
+        $testimonial->name = $request->name;
+        $testimonial->country = $request->country;
+        $testimonial->content = $request->content;
+        $testimonial->rating = $request->rating;
+        $testimonial->user_id = Auth::id();
+
+        // Handle image upload
+        if ($request->hasFile('image')) {
+            $path = $request->image->store('images', 'public');
+            $testimonial->image = $path;
+        }
+
+        $testimonial->save();
+
+        return redirect()->route('testimonials.admin')
+            ->with('success', 'Testimonial added successfully!');
+    }
+
+    // Show single testimonial
+    public function show($id)
+    {
+        $testimonial = Testimonial::findOrFail($id);
+        return view('testimonials.show', compact('testimonial'));
+    }
+
+    // Show edit form
+    public function edit($id)
+    {
+        $testimonial = Testimonial::findOrFail($id);
+        return view('testimonials.edit', compact('testimonial'));
+    }
+
+    // Update testimonial
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'country' => 'required|string|max:255',
+            'content' => 'required',
+            'rating' => 'required|integer|min:1|max:5',
+            'image' => 'nullable|mimes:jpg,jpeg,png,webp|max:2048',
+        ]);
+
+        $testimonial = Testimonial::findOrFail($id);
+        $testimonial->name = $request->name;
+        $testimonial->country = $request->country;
+        $testimonial->content = $request->content;
+        $testimonial->rating = $request->rating;
+
+        // Handle image upload
+        if ($request->hasFile('image')) {
+            $path = $request->image->store('images', 'public');
+            $testimonial->image = $path;
+        }
+
+        $testimonial->update();
+
+        return redirect()->route('testimonials.admin')
+            ->with('success', 'Testimonial updated successfully!');
+    }
+
+    // Delete testimonial
+    public function destroy($id)
+    {
+        $testimonial = Testimonial::findOrFail($id);
+        $testimonial->delete();
+
+        return redirect()->route('testimonials.admin')
+            ->with('success', 'Testimonial deleted successfully!');
+    }
+
+    // Toggle publish status
+    public function publish($id)
+    {
+        $testimonial = Testimonial::findOrFail($id);
+        $testimonial->published = ($testimonial->published == 0) ? 1 : 0;
+        $testimonial->update();
+
+        return redirect()->route('testimonials.admin')
+            ->with('success', 'Testimonial status updated!');
+    }
+}
+```
+
+### Step 4: Define Routes
+
+Add routes to `routes/web.php`:
+
+```php routes/web.php
+// Public testimonials
+Route::get('/testimonials', [TestimonialController::class, 'index'])
+    ->name('testimonials');
+
+Route::get('/testimonial/{id}', [TestimonialController::class, 'show'])
+    ->name('testimonial.show');
+
+// Admin testimonials (protected)
+Route::get('/all-testimonials', [TestimonialController::class, 'all'])
+    ->name('testimonials.admin')
+    ->middleware(['auth', 'verified']);
+
+Route::get('/testimonial/create', [TestimonialController::class, 'create'])
+    ->name('testimonial.create')
+    ->middleware(['auth', 'verified']);
+
+Route::post('/testimonial/store', [TestimonialController::class, 'store'])
+    ->name('testimonial.store')
+    ->middleware(['auth', 'verified']);
+
+Route::get('/testimonial/edit/{id}', [TestimonialController::class, 'edit'])
+    ->name('testimonial.edit')
+    ->middleware(['auth', 'verified']);
+
+Route::put('/testimonial/update/{id}', [TestimonialController::class, 'update'])
+    ->name('testimonial.update')
+    ->middleware(['auth', 'verified']);
+
+Route::delete('/testimonial/delete/{id}', [TestimonialController::class, 'destroy'])
+    ->name('testimonial.delete')
+    ->middleware(['auth', 'verified']);
+
+Route::put('/testimonial/publish/{id}', [TestimonialController::class, 'publish'])
+    ->name('testimonial.publish')
+    ->middleware(['auth', 'verified']);
+```
+
+### Step 5: Create Views
+
+Create the views directory:
+
+```bash
+mkdir -p resources/views/testimonials
+```
+
+#### Public Listing View
+
+```php resources/views/testimonials/index.blade.php
+@extends('layout.index')
+
+@section('content')
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-12">
+            <h1>Customer Testimonials</h1>
+            <p>See what our customers say about their safari experiences</p>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        @foreach($testimonials as $testimonial)
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                @if($testimonial->image)
+                <img src="{{ asset('storage/' . $testimonial->image) }}" 
+                     class="card-img-top" 
+                     alt="{{ $testimonial->name }}">
+                @endif
+                <div class="card-body">
+                    <h5 class="card-title">{{ $testimonial->name }}</h5>
+                    <p class="text-muted">{{ $testimonial->country }}</p>
+                    <div class="mb-2">
+                        @for($i = 1; $i <= 5; $i++)
+                            @if($i <= $testimonial->rating)
+                                <i class="bi bi-star-fill text-warning"></i>
+                            @else
+                                <i class="bi bi-star text-warning"></i>
+                            @endif
+                        @endfor
+                    </div>
+                    <p class="card-text">{{ Str::limit($testimonial->content, 150) }}</p>
+                    <a href="{{ route('testimonial.show', $testimonial->id) }}" 
+                       class="btn btn-primary">Read More</a>
+                </div>
+            </div>
+        </div>
+        @endforeach
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-12">
+            {{ $testimonials->links() }}
+        </div>
+    </div>
+</div>
+@endsection
+```
+
+#### Admin Listing View
+
+```php resources/views/testimonials/admin.blade.php
+@extends('layout.admin')
+
+@section('content')
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-12">
+            <h1>Manage Testimonials</h1>
+            <a href="{{ route('testimonial.create') }}" 
+               class="btn btn-primary mb-3">Add New Testimonial</a>
+            
+            @if(session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+            @endif
+            
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Country</th>
+                        <th>Rating</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($testimonials as $testimonial)
+                    <tr>
+                        <td>{{ $testimonial->name }}</td>
+                        <td>{{ $testimonial->country }}</td>
+                        <td>{{ $testimonial->rating }}/5</td>
+                        <td>
+                            @if($testimonial->published)
+                                <span class="badge bg-success">Published</span>
+                            @else
+                                <span class="badge bg-secondary">Draft</span>
+                            @endif
+                        </td>
+                        <td>
+                            <a href="{{ route('testimonial.edit', $testimonial->id) }}" 
+                               class="btn btn-sm btn-warning">Edit</a>
+                            
+                            <form action="{{ route('testimonial.publish', $testimonial->id) }}" 
+                                  method="POST" 
+                                  style="display:inline;">
+                                @csrf
+                                @method('PUT')
+                                <button type="submit" class="btn btn-sm btn-info">
+                                    {{ $testimonial->published ? 'Unpublish' : 'Publish' }}
+                                </button>
+                            </form>
+                            
+                            <form action="{{ route('testimonial.delete', $testimonial->id) }}" 
+                                  method="POST" 
+                                  style="display:inline;"
+                                  onsubmit="return confirm('Are you sure?');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            
+            {{ $testimonials->links() }}
+        </div>
+    </div>
+</div>
+@endsection
+```
+
+#### Create Form View
+
+```php resources/views/testimonials/create.blade.php
+@extends('layout.admin')
+
+@section('content')
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1>Add New Testimonial</h1>
+            
+            @if($errors->any())
+            <div class="alert alert-danger">
+                <ul>
+                    @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+            @endif
+            
+            <form action="{{ route('testimonial.store') }}" 
+                  method="POST" 
+                  enctype="multipart/form-data">
+                @csrf
+                
+                <div class="mb-3">
+                    <label for="name" class="form-label">Customer Name</label>
+                    <input type="text" 
+                           class="form-control" 
+                           id="name" 
+                           name="name" 
+                           value="{{ old('name') }}" 
+                           required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="country" class="form-label">Country</label>
+                    <input type="text" 
+                           class="form-control" 
+                           id="country" 
+                           name="country" 
+                           value="{{ old('country') }}" 
+                           required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="rating" class="form-label">Rating</label>
+                    <select class="form-select" id="rating" name="rating" required>
+                        <option value="5">5 Stars</option>
+                        <option value="4">4 Stars</option>
+                        <option value="3">3 Stars</option>
+                        <option value="2">2 Stars</option>
+                        <option value="1">1 Star</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="content" class="form-label">Testimonial Content</label>
+                    <textarea class="form-control" 
+                              id="content" 
+                              name="content" 
+                              rows="5" 
+                              required>{{ old('content') }}</textarea>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="image" class="form-label">Customer Photo (Optional)</label>
+                    <input type="file" 
+                           class="form-control" 
+                           id="image" 
+                           name="image" 
+                           accept="image/*">
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Add Testimonial</button>
+                <a href="{{ route('testimonials.admin') }}" 
+                   class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+@endsection
+```
+
+### Step 6: Add Navigation Links
+
+Update the navigation in `resources/views/layout/index.blade.php`:
+
+```php
+<li class="nav-item">
+    <a class="nav-link" href="{{ route('testimonials') }}">Testimonials</a>
+</li>
+```
+
+Update admin navigation in `resources/views/layout/admin.blade.php`:
+
+```php
+<li class="nav-item">
+    <a class="nav-link" href="{{ route('testimonials.admin') }}">
+        <i class="bi bi-chat-quote"></i> Testimonials
+    </a>
+</li>
+```
+
+## Following Existing Patterns
+
+### Controller Patterns
+
+Safaris Web controllers follow these conventions:
+
+1. **Separate public and admin methods**
+   - `index()` for public listing
+   - `all()` for admin listing
+
+2. **Consistent validation**
+   ```php
+   $request->validate([
+       'field' => 'required|type|max:length',
+   ]);
+   ```
+
+3. **Flash messages for feedback**
+   ```php
+   return redirect()->route('route.name')
+       ->with('success', 'Action completed!');
+   ```
+
+4. **Publish toggle pattern**
+   ```php
+   public function publish($id) {
+       $model = Model::find($id);
+       $model->published = ($model->published == 0) ? 1 : 0;
+       $model->update();
+       return redirect()->back();
+   }
+   ```
+
+### Image Upload Pattern
+
+From ToursController.php:80-86:
+
+```php
+if ($request->hasFile('image')) {
+    $path = $request->image->store('images', 'public');
+    $model->image = $path;
+}
+```
+
+### Model Patterns
+
+1. **Always use HasFactory trait**
+2. **Define fillable fields**
+3. **Add relationships**
+4. **Follow singular naming** (Testimonial, not Testimonials)
+
+### Route Patterns
+
+1. **Named routes** for easier reference
+2. **Middleware for protection**
+3. **RESTful naming conventions**
+4. **Group related routes**
+
+### View Patterns
+
+1. **Extend layouts**: `@extends('layout.index')`
+2. **Use sections**: `@section('content')`
+3. **Bootstrap 5 classes** for styling
+4. **Blade directives** for logic
+5. **Asset helper** for files: `asset('storage/' . $path)`
+
+## Adding API Endpoints
+
+If you need API access, add routes to `routes/api.php`:
+
+```php routes/api.php
+use App\Http\Controllers\TestimonialController;
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/testimonials', [TestimonialController::class, 'apiIndex']);
+    Route::get('/testimonials/{id}', [TestimonialController::class, 'apiShow']);
+});
+```
+
+Add API methods to controller:
+
+```php
+public function apiIndex()
+{
+    return response()->json([
+        'data' => Testimonial::where('published', 1)->get()
+    ]);
+}
+```
+
+## Testing Your Feature
+
+1. **Manual testing**:
+   ```bash
+   php artisan serve
+   ```
+   Visit `http://localhost:8000/testimonials`
+
+2. **Database check**:
+   ```bash
+   php artisan tinker
+   >>> Testimonial::count()
+   >>> Testimonial::first()
+   ```
+
+3. **Route check**:
+   ```bash
+   php artisan route:list | grep testimonial
+   ```
+
+## Next Steps
+
+- Explore [Blade Templates](/development/blade-templates) for advanced views
+- Learn about [Middleware](/development/middleware) for custom authorization
+- Review [Models & Relationships](/development/models-relationships) for complex data structures

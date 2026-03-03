@@ -1,0 +1,724 @@
+---
+title: Blog & Media Content
+description: Travel blogs, destination videos, and inspirational content on Safaris Web
+---
+
+## Overview
+
+Safaris Web features rich content through travel blogs and video media to inspire and inform your Kenya safari planning. Learn about destinations, wildlife, culture, and travel tips through engaging articles and videos.
+
+## Blog Posts
+
+### Blog Structure
+
+Blogs are managed through the `Blog` model (`app/Models/Blog.php`) and stored in the `blogs` database table.
+
+**Database Schema:**
+
+<Tabs>
+  <Tab title="Core Fields">
+    | Field | Type | Required | Description |
+    |-------|------|----------|-------------|
+    | `id` | Integer | Auto | Unique identifier |
+    | `title` | Text | Yes | Blog post title |
+    | `content` | Text | Yes | Full article content |
+    | `image` | Text | Yes | Featured image |
+  </Tab>
+  <Tab title="Additional Images">
+    Blog posts support multiple images (similar to tours):
+    - `image` - Required featured image
+    - `image2` - Required secondary image
+    - `image3` - Optional image
+    - `image4` - Optional image
+    - `image5` - Optional image
+    - `image6` - Optional image
+    
+    <Tip>
+      Up to 6 images per blog post for comprehensive visual storytelling
+    </Tip>
+  </Tab>
+  <Tab title="Management">
+    | Field | Type | Default |
+    |-------|------|--------|
+    | `user_id` | Integer | - |
+    | `published` | Integer | 0 |
+    | `created_at` | Timestamp | Auto |
+    | `updated_at` | Timestamp | Auto |
+  </Tab>
+</Tabs>
+
+### Blog Model
+
+From `app/Models/Blog.php`:
+
+```php
+protected $fillable = [ 
+    'image',
+    'title',
+    'content'
+];
+```
+
+**Fillable Fields:**
+- Core content fields for mass assignment
+- Additional images and management fields controlled separately
+
+## Browsing Blog Posts
+
+### Main Blog Page
+
+**Route:** `/all-blogs`
+
+**Controller:** `BlogController::blogs()`
+
+**Display Logic:**
+```php
+$blogs = Blog::latest()->paginate(10);
+```
+
+**Features:**
+- 10 blog posts per page
+- Latest posts first
+- Pagination controls
+- Featured images displayed
+- Post titles and excerpts
+
+<Info>
+  The route is `/all-blogs` (not just `/blogs`) to distinguish from the admin management route.
+</Info>
+
+### Blog Index Page
+
+**Route:** `/blogs`
+
+**Controller:** `BlogController::index()`
+
+**Display:**
+```php
+$coverBlogs = Blog::latest()->paginate(6);
+$blogs = Blog::latest()->limit(2)->get();
+```
+
+**Shows:**
+- 6 cover blogs (paginated)
+- 2 latest blogs highlighted
+- Multiple display formats
+
+### Homepage Blog Integration
+
+Blogs appear throughout the platform:
+
+**Homepage:**
+```php
+$blogs = Blog::latest()->limit(2)->get();
+$coverBlogs = Blog::latest()->limit(4)->get();
+```
+
+**Safaris Page:**
+```php
+$blogs = Blog::latest()->limit(2)->get();
+```
+
+**Search Results:**
+```php
+$blogs = Blog::latest()->limit(2)->get();
+```
+
+<Note>
+  Latest 2 blog posts appear on most major pages for continuous inspiration and information.
+</Note>
+
+## Blog Detail Page
+
+**Route:** `/blogs/show/{id}`
+
+**Controller:** `BlogController::show($blog, $id)`
+
+<Steps>
+  <Step title="Access Article">
+    Click on any blog post from listings to view full article at `/blogs/show/{id}`
+  </Step>
+  <Step title="Read Full Content">
+    - Complete blog title
+    - Full article content
+    - All blog images (up to 6)
+    - Publication date
+  </Step>
+  <Step title="Explore Related Content">
+    - 2 latest blog posts (related reading)
+    - 4 cover blogs (more articles)
+  </Step>
+</Steps>
+
+### Blog Post Content
+
+<Tabs>
+  <Tab title="Title">
+    **Title Field** (text type):
+    - Article headline
+    - SEO-optimized
+    - Descriptive and engaging
+    - Appears in listings and detail view
+    
+    **Examples:**
+    - "Top 10 Safari Destinations in Kenya"
+    - "The Great Migration: Complete Guide"
+    - "Cultural Experiences in Masai Mara"
+    - "What to Pack for Your Kenya Safari"
+  </Tab>
+  <Tab title="Content">
+    **Content Field** (text type):
+    - Full article body
+    - Rich text content
+    - Detailed information
+    - Tips and advice
+    - Personal experiences
+    - Destination guides
+    - Travel tips
+    - Wildlife information
+    - Cultural insights
+    
+    <Info>
+      Content field stores comprehensive articles with no character limit (text type)
+    </Info>
+  </Tab>
+  <Tab title="Images">
+    **Visual Storytelling:**
+    - Featured image (main visual)
+    - Secondary image (required)
+    - Up to 4 additional optional images
+    - Total: Up to 6 images per post
+    - Stored in Laravel public storage
+    
+    **Image Purpose:**
+    - Illustrate destinations
+    - Show wildlife
+    - Display cultural elements
+    - Demonstrate activities
+    - Provide visual context
+  </Tab>
+</Tabs>
+
+## Common Blog Topics
+
+<CardGroup cols={2}>
+  <Card title="Destination Guides" icon="map-location-dot">
+    In-depth guides to Kenya's national parks, cities, and regions
+  </Card>
+  <Card title="Wildlife Information" icon="paw">
+    Articles about Kenya's wildlife, where to see animals, best times
+  </Card>
+  <Card title="Travel Tips" icon="lightbulb">
+    Practical advice: packing, seasons, visas, health, safety
+  </Card>
+  <Card title="Cultural Content" icon="users">
+    Stories about Kenyan culture, tribes, traditions, experiences
+  </Card>
+  <Card title="Safari Planning" icon="compass">
+    How to plan safaris, choose tours, budget, timing
+  </Card>
+  <Card title="Experience Stories" icon="book">
+    Personal safari stories, testimonials, travel experiences
+  </Card>
+  <Card title="Seasonal Guides" icon="calendar">
+    Best times to visit, seasonal events, migration timing
+  </Card>
+  <Card title="Photography Tips" icon="camera">
+    Safari photography advice, equipment, techniques
+  </Card>
+</CardGroup>
+
+## Admin Blog Management
+
+### Blog Administration Routes
+
+<Tabs>
+  <Tab title="View All">
+    **Admin Management:**
+    - Route: `/blogs` (admin view)
+    - Controller: `BlogController::blogs()`
+    - Display: `Blog::latest()->paginate(10)`
+    - Middleware: `auth`, `verified`
+  </Tab>
+  <Tab title="Create">
+    **New Blog Post:**
+    - Form: `/blogs/create` (GET)
+    - Submit: `/blogs/store` (POST)
+    - Middleware: `auth`, `verified`
+    - Validation:
+      ```php
+      'title' => 'required',
+      'image' => 'required',
+      'content' => 'required'
+      ```
+  </Tab>
+  <Tab title="Edit">
+    **Update Blog:**
+    - Form: `/blogs/edit/{id}` (GET)
+    - Update: `/blogs/update/{id}` (POST)
+    - Middleware: `auth`, `verified`
+    - Can update title, content, images
+  </Tab>
+  <Tab title="Publish">
+    **Toggle Status:**
+    - Route: `/blogs/publish/{id}` (PUT)
+    - Toggles `published` between 0 and 1
+    - Middleware: `auth`, `verified`
+  </Tab>
+  <Tab title="Delete">
+    **Remove Blog:**
+    - Route: `/blogs/delete/{id}` (DELETE)
+    - Permanently removes blog post
+    - Middleware: `auth`, `verified`
+    - Success: "Content Deleted"
+  </Tab>
+</Tabs>
+
+### Blog Creation Workflow
+
+<Steps>
+  <Step title="Create Post">
+    Admin writes blog with:
+    - Engaging title
+    - Comprehensive content
+    - Featured image (required)
+    - Secondary image (required)
+    - Up to 4 additional images
+  </Step>
+  <Step title="Draft Status">
+    Post created with `published = 0`
+  </Step>
+  <Step title="Review">
+    Check for:
+    - Content accuracy
+    - Grammar and spelling
+    - Image quality
+    - Information relevance
+  </Step>
+  <Step title="Publish">
+    Set `published = 1` to make visible
+  </Step>
+  <Step title="Distribution">
+    Published blog appears:
+    - On `/all-blogs` page
+    - In homepage blog section
+    - On safari/search pages (latest 2)
+  </Step>
+</Steps>
+
+<Warning>
+  Blog images require 2 minimum (image and image2). Controller attempts to store image2, so it should be provided.
+</Warning>
+
+## Video Content
+
+### Video Structure
+
+Videos are managed through the `Video` model (`app/Models/Video.php`) and stored in the `videos` database table.
+
+**Database Schema:**
+
+<Tabs>
+  <Tab title="Video Data">
+    | Field | Type | Required | Description |
+    |-------|------|----------|-------------|
+    | `id` | Integer | Auto | Unique identifier |
+    | `url` | String | Yes | Video URL (YouTube, Vimeo, etc.) |
+    | `created_at` | Timestamp | Auto | Upload date |
+    | `updated_at` | Timestamp | Auto | Last update |
+  </Tab>
+</Tabs>
+
+**Video Model:**
+
+From `app/Models/Video.php`:
+
+```php
+protected $fillable = [
+    'url'
+];
+```
+
+<Info>
+  Videos use external hosting (YouTube, Vimeo) with URLs stored in the database. This keeps the platform lightweight while providing rich video content.
+</Info>
+
+### Browsing Videos
+
+**Route:** `/videos`
+
+**Controller:** `VideoController::index()`
+
+**Features:**
+- All published videos displayed
+- Video embeds from external platforms
+- Grid or list layout
+- Latest videos first
+
+### Homepage Video Display
+
+**Homepage Route:** `/`
+
+**Query:**
+```php
+$videos = Video::inRandomOrder()->limit(3)->get();
+```
+
+**Features:**
+- 3 random videos on homepage
+- Variety on each visit
+- Embedded video players
+- Quick visual engagement
+
+<Tip>
+  Random video selection ensures different content is highlighted on each homepage visit.
+</Tip>
+
+## Video Management
+
+### Admin Video Routes
+
+<Tabs>
+  <Tab title="View All">
+    **Video Management:**
+    - Route: `/videos`
+    - Controller: `VideoController::index()`
+    - Middleware: `auth`, `verified`
+  </Tab>
+  <Tab title="Create">
+    **Add Video:**
+    - Form: `/videos/create` (GET)
+    - Submit: `/videos/store` (POST)
+    - Middleware: `auth`, `verified`
+    - Required: `url` field
+  </Tab>
+  <Tab title="Edit">
+    **Update Video:**
+    - Form: `/videos/edit/{id}` (GET)
+    - Update: `/videos/update/{id}` (POST)
+    - Middleware: `auth`, `verified`
+    - Can change URL or other metadata
+  </Tab>
+  <Tab title="Delete">
+    **Remove Video:**
+    - Route: `/videos/delete/{id}` (DELETE)
+    - Removes video reference from database
+    - Middleware: `auth`, `verified`
+  </Tab>
+</Tabs>
+
+### Video URL Format
+
+**Supported Platforms:**
+
+<CardGroup cols={2}>
+  <Card title="YouTube" icon="youtube">
+    - Standard URLs: `https://www.youtube.com/watch?v=VIDEO_ID`
+    - Embed format: `https://www.youtube.com/embed/VIDEO_ID`
+  </Card>
+  <Card title="Vimeo" icon="vimeo">
+    - Standard URLs: `https://vimeo.com/VIDEO_ID`
+    - Player format: `https://player.vimeo.com/video/VIDEO_ID`
+  </Card>
+</CardGroup>
+
+**Common Video Topics:**
+- Safari destination tours
+- Wildlife footage
+- Accommodation showcases
+- Cultural experiences
+- Travel tips and advice
+- Customer testimonials
+- 360° virtual tours
+- Drone footage of landscapes
+
+<Note>
+  Store embeddable URLs for seamless integration into the platform.
+</Note>
+
+## Content Integration Across Platform
+
+### Where Blogs Appear
+
+<AccordionGroup>
+  <Accordion title="Homepage">
+    - 2 latest blogs
+    - 4 cover blogs
+    - Featured in content section
+    - Query: `Blog::latest()->limit(2)->get()`
+  </Accordion>
+  <Accordion title="Safaris Page">
+    - 2 latest blogs alongside tours
+    - Inspiration while browsing
+    - Context for destinations
+  </Accordion>
+  <Accordion title="Search Results">
+    - 2 latest blogs
+    - Helps inform search decisions
+  </Accordion>
+  <Accordion title="Booking Pages">
+    - Blogs displayed for inspiration
+    - Destination information
+    - Build confidence in booking
+  </Accordion>
+  <Accordion title="Tour Detail Pages">
+    - Related blog content
+    - Destination guides
+    - Additional information
+  </Accordion>
+</AccordionGroup>
+
+### Where Videos Appear
+
+<AccordionGroup>
+  <Accordion title="Homepage">
+    - 3 random videos
+    - Visual engagement
+    - Destination showcase
+    - Query: `Video::inRandomOrder()->limit(3)->get()`
+  </Accordion>
+  <Accordion title="Media Page">
+    - Route: `/media`
+    - All videos displayed
+    - Comprehensive video library
+  </Accordion>
+  <Accordion title="Dedicated Videos Page">
+    - Route: `/videos`
+    - All video content
+    - Organized display
+  </Accordion>
+</AccordionGroup>
+
+## Content Strategy Benefits
+
+<CardGroup cols={2}>
+  <Card title="Inspiration" icon="lightbulb">
+    Blogs and videos inspire travel decisions and safari bookings
+  </Card>
+  <Card title="Information" icon="circle-info">
+    Educational content helps users plan better trips
+  </Card>
+  <Card title="SEO" icon="magnifying-glass">
+    Rich content improves search engine visibility
+  </Card>
+  <Card title="Trust Building" icon="shield-check">
+    Expert content establishes platform credibility
+  </Card>
+  <Card title="Engagement" icon="heart">
+    Keeps users on platform longer, browsing content
+  </Card>
+  <Card title="Decision Support" icon="check-double">
+    Helps users choose right tours and destinations
+  </Card>
+</CardGroup>
+
+## Content Publishing Workflow
+
+### For Blog Posts
+
+<Steps>
+  <Step title="Content Creation">
+    Admin writes comprehensive article with:
+    - Research and accurate information
+    - Engaging writing style
+    - Helpful tips and advice
+    - Personal insights
+  </Step>
+  <Step title="Image Selection">
+    Choose high-quality images:
+    - 2 minimum required
+    - Up to 6 total
+    - Relevant to content
+    - High resolution
+  </Step>
+  <Step title="Draft Review">
+    Check content quality:
+    - Accuracy verification
+    - Grammar and spelling
+    - Image quality
+    - Link functionality
+  </Step>
+  <Step title="SEO Optimization">
+    - Descriptive title
+    - Keyword-rich content
+    - Alt text for images (if implemented)
+  </Step>
+  <Step title="Publish">
+    Toggle `published` to 1, making blog live across platform
+  </Step>
+</Steps>
+
+### For Videos
+
+<Steps>
+  <Step title="Video Production">
+    Create or source video content:
+    - Professional quality
+    - Relevant to Kenya tourism
+    - Appropriate length (2-10 minutes typically)
+  </Step>
+  <Step title="External Hosting">
+    Upload to YouTube or Vimeo:
+    - Public or unlisted
+    - Embeddable enabled
+    - Good metadata (title, description, tags)
+  </Step>
+  <Step title="URL Extraction">
+    Get embeddable video URL
+  </Step>
+  <Step title="Database Entry">
+    Add video to platform via `/videos/create`:
+    - Paste URL
+    - Submit
+  </Step>
+  <Step title="Verification">
+    Check video displays correctly on frontend
+  </Step>
+</Steps>
+
+## User Benefits
+
+<Tabs>
+  <Tab title="Pre-Trip Planning">
+    **Research & Learn:**
+    - Destination guides
+    - What to expect
+    - Best times to visit
+    - Packing lists
+    - Budget planning
+    - Itinerary ideas
+  </Tab>
+  <Tab title="Inspiration">
+    **Get Excited:**
+    - Beautiful imagery
+    - Engaging videos
+    - Wildlife encounters
+    - Cultural experiences
+    - Adventure possibilities
+  </Tab>
+  <Tab title="Decision Making">
+    **Choose Wisely:**
+    - Compare destinations
+    - Understand tour options
+    - Learn about seasons
+    - Read about experiences
+    - See real footage
+  </Tab>
+  <Tab title="Post-Booking">
+    **Prepare Well:**
+    - Final preparations
+    - What to bring
+    - Local customs
+    - Photography tips
+    - Safari etiquette
+  </Tab>
+</Tabs>
+
+## Content Quality Guidelines
+
+### Blog Posts Should:
+
+<CardGroup cols={2}>
+  <Card title="Be Informative" icon="book-open">
+    Provide valuable, accurate information users can use
+  </Card>
+  <Card title="Be Engaging" icon="comments">
+    Written in interesting, accessible style
+  </Card>
+  <Card title="Be Original" icon="star">
+    Unique content, not copied from other sources
+  </Card>
+  <Card title="Be Well-Structured" icon="list">
+    Clear headings, paragraphs, easy to read
+  </Card>
+  <Card title="Include Visuals" icon="image">
+    Multiple high-quality images throughout
+  </Card>
+  <Card title="Be Current" icon="clock">
+    Up-to-date information and recent experiences
+  </Card>
+</CardGroup>
+
+### Videos Should:
+
+<CardGroup cols={2}>
+  <Card title="Be Professional" icon="award">
+    Good quality video and audio
+  </Card>
+  <Card title="Be Relevant" icon="bullseye">
+    Related to Kenya travel and safaris
+  </Card>
+  <Card title="Be Appropriate Length" icon="stopwatch">
+    Long enough to inform, short enough to maintain attention
+  </Card>
+  <Card title="Be Embeddable" icon="code">
+    Proper settings on YouTube/Vimeo for embedding
+  </Card>
+</CardGroup>
+
+## Blog Statistics
+
+**Display Patterns:**
+- **Homepage:** 2-4 latest blogs
+- **All Blogs:** 10 per page (paginated)
+- **Blog Index:** 6 cover blogs + 2 featured
+- **Other Pages:** 2 latest blogs
+- **Blog Detail:** Shows 2 latest + 4 cover for related reading
+
+**Ordering:** `latest()` - Most recent first
+
+**Pagination:** 10 items per page on main listings
+
+## Video Statistics
+
+**Display Patterns:**
+- **Homepage:** 3 random videos
+- **Videos Page:** All videos
+- **Admin Dashboard:** Video count tracked
+
+**Selection:** `inRandomOrder()` - Variety on each visit
+
+## Related Features
+
+<CardGroup cols={2}>
+  <Card title="Tours & Safaris" icon="binoculars" href="/features/tours-safaris">
+    Blog posts and videos support tour bookings with information and inspiration
+  </Card>
+  <Card title="Accommodations" icon="hotel" href="/features/accommodations">
+    Content can feature specific accommodations and locations
+  </Card>
+  <Card title="Events" icon="calendar-star" href="/features/events">
+    Blogs can promote events and provide event guides
+  </Card>
+  <Card title="Browsing Tours" icon="search" href="/user-guide/browsing-tours">
+    Content appears alongside tour browsing for informed decisions
+  </Card>
+</CardGroup>
+
+## Best Practices for Users
+
+<Steps>
+  <Step title="Read Before Booking">
+    Browse blog posts about destinations before selecting tours
+  </Step>
+  <Step title="Watch Videos">
+    View destination videos to visualize your safari experience
+  </Step>
+  <Step title="Take Notes">
+    Save useful tips and advice from blogs for trip planning
+  </Step>
+  <Step title="Share Content">
+    Share interesting blogs and videos with travel companions
+  </Step>
+  <Step title="Check Back">
+    New content added regularly - check back for fresh information
+  </Step>
+</Steps>
+
+<Tip>
+  **Content + Booking = Success:** Combine blog research and video inspiration with tour browsing for the best-planned safari experience.
+</Tip>
+
+<Note>
+  Blog and video content is continuously updated. Check the `/all-blogs` and `/videos` pages regularly for the latest Kenya travel information.
+</Note>

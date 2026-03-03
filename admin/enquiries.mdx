@@ -1,0 +1,746 @@
+---
+title: 'Handling Customer Enquiries'
+description: 'Complete guide to viewing, managing, and responding to customer enquiries in Safaris Web'
+---
+
+## Overview
+
+The Enquiries Management system allows you to receive, view, and manage customer inquiries about tours and travel packages. Enquiries are submitted through a public form and stored for admin review. All enquiry operations are handled by the `EnquiryController`.
+
+**Controller:** `App\Http\Controllers\EnquiryController`  
+**Model:** `App\Models\Enquiry`  
+**Table:** `enquiries`  
+**Route:** `/enquiries` (resource route)
+
+<Warning>
+  Enquiry routes use Laravel's resource controller pattern and are **NOT protected** by authentication middleware. Anyone can view, create, and potentially delete enquiries.
+</Warning>
+
+## Enquiry Routes
+
+Enquiries use Laravel's resource routing:
+
+```php
+Route::resource('enquiries', EnquiryController::class);
+```
+*Source: web.php:53*
+
+This generates the following routes:
+
+| Action | Route | Name | Method | Middleware |
+|--------|-------|------|--------|------------|
+| List all enquiries | `/enquiries` | `enquiries.index` | GET | **None** |
+| Create enquiry form | `/enquiries/create` | `enquiries.create` | GET | **None** |
+| Store new enquiry | `/enquiries` | `enquiries.store` | POST | **None** |
+| View single enquiry | `/enquiries/{id}` | `enquiries.show` | GET | **None** |
+| Edit enquiry form | `/enquiries/{id}/edit` | `enquiries.edit` | GET | **None** |
+| Update enquiry | `/enquiries/{id}` | `enquiries.update` | PUT/PATCH | **None** |
+| Delete enquiry | `/enquiries/{id}` | `enquiries.destroy` | DELETE | **None** |
+
+<Note>
+  The create and store routes are intentionally public (for customer submissions), but the other routes should be protected.
+</Note>
+
+## Enquiry Model
+
+The Enquiry model defines fillable attributes:
+
+```php
+protected $table = 'enquiries';
+
+protected $fillable = [
+    'full_name', 
+    'email_address', 
+    'phone_number', 
+    'destinations', 
+    'nationality', 
+    'travel_date'
+];
+```
+*Source: Enquiry.php:12-16*
+
+### Database Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | integer | Auto | Unique enquiry identifier |
+| `full_name` | string | Yes | Customer's full name |
+| `email_address` | string | Yes | Customer's email |
+| `phone_number` | string | Yes | Customer's contact number |
+| `destinations` | string | Yes | Desired tour destinations |
+| `adults` | integer | Yes | Number of adult travelers |
+| `kids` | integer | Yes | Number of children |
+| `nationality` | string | Yes | Customer's nationality |
+| `travel_date` | date | Yes | Preferred travel date |
+| `budget` | string | Yes | Budget range or amount |
+| `medium` | string | Yes | How they heard about you |
+| `luxury` | string | Yes | Luxury preference level |
+| `additional_info` | text | No | Additional information or requests |
+| `created_at` | datetime | Auto | Enquiry submission timestamp |
+| `updated_at` | datetime | Auto | Last update timestamp |
+
+<Note>
+  The fillable array only includes 6 fields, but the validation and storage logic uses 12 fields. Consider updating the fillable array for consistency.
+</Note>
+
+## Viewing Enquiries
+
+### List All Enquiries
+
+**Route:** `/enquiries`  
+**Method:** GET  
+**Controller Method:** `index()`  
+*Source: EnquiryController.php:17-23*
+
+```php
+public function index()
+{
+    $enquiries = Enquiry::latest()->paginate(10);
+    return view('enquiries.index', compact('enquiries'))
+        ->with('i', (request()->input('page', 1) - 1) * 5);
+}
+```
+
+**Features:**
+- Displays 10 enquiries per page
+- Sorted by newest first (`latest()`)
+- Paginated results
+- No authentication required (security concern)
+
+<Warning>
+  This endpoint is **publicly accessible**, allowing anyone to view all customer enquiries including personal information (emails, phone numbers, travel plans). This is a privacy violation.
+</Warning>
+
+### View Single Enquiry
+
+**Route:** `/enquiries/{id}`  
+**Method:** GET  
+**Controller Method:** `show(Enquiry $enquiry)`  
+*Source: EnquiryController.php:99-102*
+
+```php
+public function show(Enquiry $enquiry)
+{
+    // Empty method - not implemented
+}
+```
+
+<Note>
+  The show method exists but is not implemented. Single enquiry viewing functionality needs to be added.
+</Note>
+
+## Creating an Enquiry (Customer Submission)
+
+<Steps>
+  <Step title="Customer Navigates to Enquiry Form">
+    Customers access the enquiry form at `/enquiries/create`
+    
+    **Route Name:** `enquiries.create`  
+    **Middleware:** None (public access)
+  </Step>
+  
+  <Step title="Fill Enquiry Form">
+    Customer completes all required fields:
+    - Full name
+    - Email address
+    - Phone number
+    - Desired destinations
+    - Number of adults
+    - Number of kids
+    - Nationality
+    - Preferred travel date
+    - Budget
+    - How they heard about you (medium)
+    - Luxury preference
+    - Additional information (optional)
+  </Step>
+  
+  <Step title="Submit Enquiry">
+    Form submits to `/enquiries` via POST
+  </Step>
+  
+  <Step title="Confirmation">
+    Customer receives success message and admin receives enquiry
+  </Step>
+</Steps>
+
+### Create Form
+
+**Route:** `/enquiries/create`  
+**Method:** GET  
+**Controller Method:** `create()`  
+*Source: EnquiryController.php:30-39*
+
+```php
+public function create()
+{
+    $blogs = Blog::all();
+    
+    return view('enquiries.create', [
+        'blogs' => $blogs
+    ]);
+}
+```
+
+**Features:**
+- Public-facing enquiry form
+- Includes blog posts for context
+- No authentication required
+
+### Store New Enquiry
+
+**Route:** `/enquiries`  
+**Method:** POST  
+**Controller Method:** `store(Request $request)`  
+*Source: EnquiryController.php:47-90*
+
+#### Validation Rules
+
+```php
+$request->validate([
+    'full_name' => 'required',
+    'email_address' => 'required',
+    'phone_number' => 'required',
+    'destinations' => 'required',
+    'adults' => 'required',
+    'kids' => 'required',
+    'nationality' => 'required',
+    'travel_date' => 'required',
+    'budget' => 'required',
+    'medium' => 'required',
+    'luxury' => 'required'
+]);
+```
+*Source: EnquiryController.php:50-62*
+
+**Required Fields:**
+- Customer information: full_name, email_address, phone_number, nationality
+- Travel details: destinations, adults, kids, travel_date
+- Preferences: budget, medium (how they heard), luxury level
+
+**Optional Fields:**
+- additional_info - Any extra information or special requests
+
+#### Storage Logic
+
+```php
+$enquiry = new Enquiry;
+
+$enquiry->full_name = $request->full_name;
+$enquiry->email_address = $request->email_address;
+$enquiry->phone_number = $request->phone_number;
+$enquiry->destinations = $request->destinations;
+$enquiry->adults = $request->adults;
+$enquiry->kids = $request->kids;
+$enquiry->nationality = $request->nationality;
+$enquiry->travel_date = $request->travel_date;
+$enquiry->budget = $request->budget;
+$enquiry->medium = $request->medium;
+$enquiry->luxury = $request->luxury;
+$enquiry->additional_info = $request->additional_info;
+
+$enquiry->save();
+```
+*Source: EnquiryController.php:64-80*
+
+#### Email Notification (Commented Out)
+
+The code includes commented-out email notification functionality:
+
+```php
+// $successMessage = [
+//     'title' => 'Success!',
+//     'body' => 'We have recieved your enquiry and one of our representatives will get back to you with further details.'
+// ];
+
+// \Mail::to('crud3swift@gmail.com')->send( new \App\Mail\EnquiryMail($successMessage));
+```
+*Source: EnquiryController.php:82-87*
+
+<Note>
+  Email notifications are currently disabled. Enable them to automatically notify admins of new enquiries.
+</Note>
+
+#### Success Response
+
+After successful submission:
+
+```php
+return redirect()->route('enquiries.create')
+    ->with('success', 'We have recieved your Message, Thank You.. Our customer experience representative will be reaching out shortly via the contacts provided.');
+```
+
+## Editing an Enquiry
+
+**Route:** `/enquiries/{id}/edit`  
+**Method:** GET  
+**Controller Method:** `edit(Enquiry $enquiry)`  
+*Source: EnquiryController.php:110-113*
+
+```php
+public function edit(Enquiry $enquiry)
+{
+    // Empty method - not implemented
+}
+```
+
+<Warning>
+  The edit method exists but is **not implemented**. Enquiries cannot be edited through the admin interface.
+</Warning>
+
+## Updating an Enquiry
+
+**Route:** `/enquiries/{id}`  
+**Method:** PUT/PATCH  
+**Controller Method:** `update(Request $request, Enquiry $enquiry)`  
+*Source: EnquiryController.php:122-125*
+
+```php
+public function update(Request $request, Enquiry $enquiry)
+{
+    // Empty method - not implemented
+}
+```
+
+<Warning>
+  The update method exists but is **not implemented**. Enquiries cannot be updated after submission.
+</Warning>
+
+## Deleting an Enquiry
+
+**Route:** `/enquiries/{id}`  
+**Method:** DELETE  
+**Controller Method:** `destroy(Enquiry $enquiry)`  
+*Source: EnquiryController.php:133-141*
+
+```php
+public function destroy(Enquiry $enquiry)
+{
+    $enquiry = Enquiry::find($enquiry->id);
+    $enquiry->delete();
+    
+    return redirect()->route('enquiries.index')
+        ->with('success', 'Enquiry Deleted Successfully');
+}
+```
+
+<Warning>
+  **Issues:**
+  1. No authentication required - anyone can delete enquiries
+  2. Hard delete - enquiries are permanently removed
+  3. No authorization check
+</Warning>
+
+<Steps>
+  <Step title="Locate the Enquiry">
+    Find the enquiry in the enquiries list at `/enquiries`
+  </Step>
+  
+  <Step title="Review Enquiry Details">
+    Before deleting, ensure:
+    - Customer has been contacted
+    - Enquiry has been resolved or is spam
+    - Information has been recorded elsewhere if needed
+  </Step>
+  
+  <Step title="Confirm Deletion">
+    Click delete button
+  </Step>
+  
+  <Step title="Enquiry Removed">
+    Enquiry is permanently deleted from the database
+  </Step>
+</Steps>
+
+## Enquiry Workflow
+
+<Steps>
+  <Step title="Customer Submits Enquiry">
+    Customer fills out enquiry form with travel details and preferences
+    - No account required
+    - Receives confirmation message
+  </Step>
+  
+  <Step title="Admin Reviews Enquiry">
+    Admin accesses `/enquiries` to view new enquiries
+    - Sorted by newest first
+    - Contains customer contact info
+    - Includes travel preferences and budget
+  </Step>
+  
+  <Step title="Admin Contacts Customer">
+    Admin reaches out via email or phone
+    - Discuss travel plans
+    - Provide tour recommendations
+    - Send quotations
+    - Answer questions
+  </Step>
+  
+  <Step title="Follow-up and Conversion">
+    Continue communication until:
+    - Customer books a tour (convert to booking)
+    - Customer declines (mark as closed)
+    - No response (follow up or archive)
+  </Step>
+  
+  <Step title="Archive or Delete">
+    Once resolved:
+    - Delete spam enquiries
+    - Archive completed enquiries (if soft delete implemented)
+    - Keep for future reference or analysis
+  </Step>
+</Steps>
+
+## Security Issues
+
+<Warning>
+  **CRITICAL SECURITY AND PRIVACY ISSUES**
+  
+  The enquiries system has severe vulnerabilities:
+</Warning>
+
+### No Authentication on Admin Routes
+
+**Problem:** Anyone can view all enquiries with personal information
+
+```php
+// Current (INSECURE)
+Route::resource('enquiries', EnquiryController::class);
+```
+
+**Impact:**
+- Public access to customer names, emails, phone numbers
+- Privacy violation (GDPR/data protection concerns)
+- Potential for data scraping
+- Competitive intelligence risk
+
+**Required Fix:**
+
+```php
+// Public routes (for customer submissions)
+Route::get('/enquiries/create', [EnquiryController::class, 'create'])
+    ->name('enquiries.create');
+Route::post('/enquiries', [EnquiryController::class, 'store'])
+    ->name('enquiries.store');
+
+// Protected routes (for admin only)
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/enquiries', [EnquiryController::class, 'index'])
+        ->name('enquiries.index');
+    Route::get('/enquiries/{id}', [EnquiryController::class, 'show'])
+        ->name('enquiries.show');
+    Route::delete('/enquiries/{id}', [EnquiryController::class, 'destroy'])
+        ->name('enquiries.destroy');
+});
+```
+
+### No Spam Protection
+
+**Problem:** Enquiry form has no CAPTCHA or rate limiting
+
+**Impact:**
+- Vulnerable to spam submissions
+- Can be abused by bots
+- Database pollution
+
+**Recommended Fix:**
+
+```php
+// Add to validation
+$request->validate([
+    // ... other fields
+    'g-recaptcha-response' => 'required|captcha',
+]);
+
+// Add to route
+Route::post('/enquiries', [EnquiryController::class, 'store'])
+    ->middleware('throttle:5,1'); // 5 submissions per minute
+```
+
+### Missing Functionality
+
+**Problem:** Edit and update methods are empty
+
+**Impact:**
+- Cannot update enquiry status
+- Cannot add admin notes
+- Cannot track follow-up actions
+
+**Recommended Implementation:**
+
+Add status tracking:
+
+```php
+// Migration
+$table->enum('status', ['new', 'in_progress', 'contacted', 'converted', 'closed'])
+      ->default('new');
+$table->text('admin_notes')->nullable();
+$table->foreignId('assigned_to')->nullable()->constrained('users');
+```
+
+## Recommended Improvements
+
+<Steps>
+  <Step title="Implement Status Tracking">
+    Add enquiry status field:
+    
+    ```php
+    // Migration
+    Schema::table('enquiries', function (Blueprint $table) {
+        $table->enum('status', ['new', 'contacted', 'quoted', 'converted', 'closed'])
+              ->default('new');
+        $table->text('admin_notes')->nullable();
+    });
+    
+    // Update method
+    public function updateStatus(Request $request, $id)
+    {
+        $enquiry = Enquiry::findOrFail($id);
+        $this->authorize('update', $enquiry);
+        
+        $enquiry->status = $request->status;
+        $enquiry->admin_notes = $request->admin_notes;
+        $enquiry->save();
+        
+        return redirect()->route('enquiries.index')
+            ->with('success', 'Enquiry updated');
+    }
+    ```
+  </Step>
+  
+  <Step title="Enable Email Notifications">
+    Uncomment and configure email notifications:
+    
+    ```php
+    // Send to admin
+    Mail::to(config('mail.admin_email'))
+        ->send(new NewEnquiryNotification($enquiry));
+    
+    // Send confirmation to customer
+    Mail::to($enquiry->email_address)
+        ->send(new EnquiryConfirmationMail($enquiry));
+    ```
+  </Step>
+  
+  <Step title="Add Spam Protection">
+    Implement reCAPTCHA:
+    
+    ```php
+    // In form
+    {!! NoCaptcha::renderJs() !!}
+    {!! NoCaptcha::display() !!}
+    
+    // In validation
+    'g-recaptcha-response' => 'required|captcha'
+    ```
+  </Step>
+  
+  <Step title="Implement Enquiry Dashboard">
+    Create admin dashboard for enquiry management:
+    
+    ```php
+    public function dashboard()
+    {
+        $stats = [
+            'new' => Enquiry::where('status', 'new')->count(),
+            'in_progress' => Enquiry::where('status', 'in_progress')->count(),
+            'converted' => Enquiry::where('status', 'converted')->count(),
+            'total' => Enquiry::count(),
+        ];
+        
+        $recent = Enquiry::latest()->limit(10)->get();
+        
+        return view('admin.enquiries.dashboard', compact('stats', 'recent'));
+    }
+    ```
+  </Step>
+  
+  <Step title="Add Search and Filtering">
+    Allow filtering enquiries by status, date, destination:
+    
+    ```php
+    public function index(Request $request)
+    {
+        $query = Enquiry::query();
+        
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+        
+        if ($request->destination) {
+            $query->where('destinations', 'like', '%' . $request->destination . '%');
+        }
+        
+        if ($request->from_date) {
+            $query->whereDate('created_at', '>=', $request->from_date);
+        }
+        
+        $enquiries = $query->latest()->paginate(10);
+        
+        return view('enquiries.index', compact('enquiries'));
+    }
+    ```
+  </Step>
+</Steps>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Enquiry Response Time" icon="clock">
+    - Respond to enquiries within 24 hours
+    - Set up email notifications for new enquiries
+    - Prioritize enquiries with near-term travel dates
+    - Assign enquiries to specific team members
+    - Track response times and follow-ups
+  </Accordion>
+  
+  <Accordion title="Data Privacy" icon="shield">
+    - Protect customer personal information
+    - Limit access to authorized personnel only
+    - Implement data retention policies
+    - Comply with GDPR and data protection laws
+    - Secure enquiry data in transit and at rest
+    - Provide customers option to delete their data
+  </Accordion>
+  
+  <Accordion title="Enquiry Qualification" icon="check-square">
+    - Assess budget vs. tour costs
+    - Verify travel dates are feasible
+    - Check group size against tour capacity
+    - Identify special requirements early
+    - Determine decision timeline
+    - Qualify leads before extensive quoting
+  </Accordion>
+  
+  <Accordion title="Follow-up Strategy" icon="tasks">
+    - Send immediate confirmation email
+    - Follow up within 24 hours with details
+    - Provide personalized recommendations
+    - Send reminders for pending decisions
+    - Track conversion rate from enquiry to booking
+    - Maintain CRM records of all interactions
+  </Accordion>
+</AccordionGroup>
+
+## Enquiry Form Fields Explained
+
+| Field | Purpose | Example Values |
+|-------|---------|----------------|
+| `full_name` | Customer identification | "John Smith" |
+| `email_address` | Primary contact method | "john@example.com" |
+| `phone_number` | Alternative contact | "+1-555-0123" |
+| `destinations` | Desired travel locations | "Serengeti, Ngorongoro, Zanzibar" |
+| `adults` | Group size (adults) | 2 |
+| `kids` | Group size (children) | 1 |
+| `nationality` | Visa/travel requirements | "United States" |
+| `travel_date` | Preferred travel timing | "2026-08-15" |
+| `budget` | Budget constraints | "$5000-$7000" or "Medium budget" |
+| `medium` | How they found you | "Google Search", "Friend referral" |
+| `luxury` | Accommodation preference | "Luxury", "Mid-range", "Budget" |
+| `additional_info` | Special requests | "Honeymoon package, private guide" |
+
+## Integration with Bookings
+
+<Note>
+  Currently, enquiries and bookings are separate systems. Consider implementing a workflow to convert enquiries into bookings.
+</Note>
+
+### Recommended Conversion Flow
+
+```php
+// Add method to convert enquiry to booking
+public function convertToBooking(Enquiry $enquiry)
+{
+    $this->authorize('convert', $enquiry);
+    
+    // Create booking from enquiry
+    $booking = new Booking([
+        'first_name' => explode(' ', $enquiry->full_name)[0],
+        'last_name' => explode(' ', $enquiry->full_name, 2)[1] ?? '',
+        'email' => $enquiry->email_address,
+        'phone_number' => $enquiry->phone_number,
+        'arrival_date' => $enquiry->travel_date,
+        'adults' => $enquiry->adults,
+        'kids' => $enquiry->kids,
+        'country' => $enquiry->nationality,
+        'destination' => $enquiry->destinations,
+    ]);
+    
+    $booking->save();
+    
+    // Update enquiry status
+    $enquiry->status = 'converted';
+    $enquiry->save();
+    
+    return redirect()->route('bookings.edit', $booking->id)
+        ->with('success', 'Enquiry converted to booking');
+}
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Enquiries Not Appearing" icon="exclamation-triangle">
+    **Possible causes:**
+    - Form validation failing silently
+    - Database connection issues
+    - Form submitting to wrong endpoint
+    
+    **Solution:**
+    - Check Laravel logs in `storage/logs/`
+    - Verify form action URL
+    - Test database connection
+    - Check validation error messages
+  </Accordion>
+  
+  <Accordion title="Email Notifications Not Sending" icon="envelope">
+    **Cause:** Email code is commented out
+    
+    **Solution:**
+    1. Uncomment email code in `store()` method
+    2. Configure mail settings in `.env`:
+       ```
+       MAIL_MAILER=smtp
+       MAIL_HOST=smtp.mailtrap.io
+       MAIL_PORT=2525
+       MAIL_USERNAME=your-username
+       MAIL_PASSWORD=your-password
+       ```
+    3. Test email configuration:
+       ```bash
+       php artisan tinker
+       Mail::raw('Test', function($msg) { $msg->to('test@example.com'); });
+       ```
+  </Accordion>
+  
+  <Accordion title="Cannot Delete Enquiry" icon="trash">
+    **Check:**
+    - JavaScript confirmation working
+    - CSRF token present
+    - DELETE method properly spoofed
+    
+    **Solution:**
+    - Ensure form includes `@method('DELETE')` and `@csrf`
+    - Check browser console for JavaScript errors
+  </Accordion>
+</AccordionGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Managing Bookings" icon="calendar" href="/admin/managing-bookings">
+    Convert enquiries to bookings
+  </Card>
+  
+  <Card title="User Management" icon="users" href="/admin/user-management">
+    Track customer interactions
+  </Card>
+  
+  <Card title="Managing Tours" icon="map" href="/admin/managing-tours">
+    Match enquiries to tours
+  </Card>
+  
+  <Card title="User Roles" icon="shield" href="/admin/user-roles">
+    Control access to enquiries
+  </Card>
+</CardGroup>

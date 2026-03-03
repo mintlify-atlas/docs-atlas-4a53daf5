@@ -1,0 +1,582 @@
+---
+title: Blade Templates
+description: View structure, layout system, and Blade templating in Safaris Web
+---
+
+## Overview
+
+Safaris Web uses Laravel's Blade templating engine for all views. Templates are organized in `~/workspace/source/resources/views/` with a master layout system for consistent design.
+
+## Directory Structure
+
+```
+resources/views/
+├── layout/                 # Master layouts
+│   ├── index.blade.php     # Main public layout
+│   ├── admin.blade.php     # Admin dashboard layout
+│   ├── dash.blade.php      # Alternative dashboard
+│   └── new.blade.php       # Alternative layout
+├── auth/                   # Authentication views
+│   ├── login.blade.php
+│   ├── register.blade.php
+│   └── verify.blade.php
+├── tours/                  # Tour management
+│   ├── index.blade.php
+│   ├── create.blade.php
+│   ├── edit.blade.php
+│   └── show.blade.php
+├── bookings/               # Booking views
+├── blogs/                  # Blog views
+├── products/               # Product catalog
+├── services/               # Service views
+├── events/                 # Event views
+├── accomodations/          # Accommodation views
+├── admin/                  # Admin dashboard
+└── home.blade.php          # Homepage
+```
+
+## Master Layout System
+
+### Main Public Layout
+
+**File**: `~/workspace/source/resources/views/layout/index.blade.php`
+
+This is the primary layout for all public-facing pages.
+
+#### Structure
+
+```php resources/views/layout/index.blade.php
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="author" content="_wawiny" />
+    <meta name="keywords" content="africa, okulink, safaris, socio-cultural, discoveries" />
+    <meta name="description" content="Okulink safaris is the story of discoveries..." />
+    
+    <title>Okulink Safaris | magical experiences through tours & travel.</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ asset('css/main.css') }}" />
+    
+    <!-- Owl Carousel -->
+    <link rel="stylesheet" href="{{ asset('OwlCarousel2-2.3.4/dist/assets/owl.carousel.min.css') }}">
+</head>
+<body class="scrollTop">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg bg-primar text-white fixed-top mb-1">
+        <!-- Nav content -->
+    </nav>
+    
+    <!-- Search Bar -->
+    <div class="container pt-3 text-center">
+        <div class="row">
+            <div class="col-md-4 offset-md-4">
+                <form class="d-flex" action="{{ route('search') }}" method="GET">
+                    <input class="form-control me-2" type="search" name="term" placeholder="search hotel ...">
+                    <button class="btn btn-outline-primar" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    @yield('content')
+    
+    <!-- Footer -->
+    <div class="footer bg-primar text-white pt-5">
+        <!-- Footer content -->
+    </div>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ asset('OwlCarousel2-2.3.4/dist/owl.carousel.js') }}"></script>
+</body>
+</html>
+```
+
+#### Key Features
+
+**Navigation** (`index.blade.php:75-207`):
+- Responsive navbar with Bootstrap 5
+- Dynamic user authentication state
+- Admin dashboard link for admins
+- User dropdown for regular users
+
+```php resources/views/layout/index.blade.php:132-202
+@guest
+<li class="nav-item">
+    <a class="nav-link" href="{{ route('login') }}">
+        <i class="bi bi-lock"></i> Log In
+    </a>
+</li>
+<li class="nav-item">
+    <a class="nav-link" href="{{ route('register') }}">Sign up</a>
+</li>
+@endguest
+
+@auth
+    @if(Auth::user()->isAdmin == 1)
+    <li class="nav-item">
+        <a class="nav-link" href="{{ route('dashboard') }}">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+    </li>
+    @else
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" role="button" data-toggle="dropdown">
+            <i class="bi bi-person-check"></i> {{ Auth::user()->name }}
+        </a>
+        <div class="dropdown-menu">
+            <a class="dropdown-item" href="{{ route('profile') }}">
+                <i class="bi bi-speedometer2"></i> Profile
+            </a>
+            <a href="{{ route('updatePage', Auth::user()->id) }}" class="dropdown-item">
+                <i class="bi bi-lock"></i> Reset Credentials
+            </a>
+            <a class="dropdown-item" href="{{ route('logout') }}"
+               onclick="event.preventDefault();document.getElementById('logout-form').submit();">
+                <i class="bi bi-power"></i> Logout
+            </a>
+            <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
+                @csrf
+            </form>
+        </div>
+    </li>
+    @endif
+@endauth
+```
+
+**Search Functionality** (`index.blade.php:214-226`):
+```php
+<form class="d-flex" action="{{ route('search') }}" method="GET">
+    <input class="form-control me-2" type="search" name="term" placeholder="search hotel ...">
+    <button class="btn btn-outline-primar" type="submit">
+        <i class="bi bi-search"></i>
+    </button>
+</form>
+```
+
+**Footer** (`index.blade.php:229-365`):
+- Useful links
+- Company values
+- About section
+- Social media links
+- Contact information
+
+### Using the Master Layout
+
+All child views extend the master layout:
+
+```php
+@extends('layout.index')
+
+@section('content')
+    <!-- Your page content here -->
+@endsection
+```
+
+## Common Blade Directives
+
+### Control Structures
+
+<CodeGroup>
+
+```php If Statements
+@if($tours->count() > 0)
+    <p>We have {{ $tours->count() }} tours available.</p>
+@elseif($tours->count() == 0)
+    <p>No tours available at the moment.</p>
+@else
+    <p>Something went wrong.</p>
+@endif
+```
+
+```php Unless
+@unless(Auth::check())
+    <p>You are not signed in.</p>
+@endunless
+```
+
+```php Authentication
+@auth
+    <p>Welcome, {{ Auth::user()->name }}!</p>
+@endauth
+
+@guest
+    <p>Please log in.</p>
+@endguest
+```
+
+```php Isset/Empty
+@isset($tours)
+    <p>Tours variable is defined.</p>
+@endisset
+
+@empty($tours)
+    <p>No tours found.</p>
+@endempty
+```
+
+</CodeGroup>
+
+### Loops
+
+<CodeGroup>
+
+```php Foreach Loop
+@foreach($tours as $tour)
+    <div class="tour-card">
+        <h3>{{ $tour->hotel }}</h3>
+        <p>{{ $tour->location }}</p>
+    </div>
+@endforeach
+```
+
+```php For Loop
+@for($i = 1; $i <= 5; $i++)
+    <i class="bi bi-star"></i>
+@endfor
+```
+
+```php Forelse (with empty state)
+@forelse($tours as $tour)
+    <div>{{ $tour->hotel }}</div>
+@empty
+    <p>No tours available.</p>
+@endforelse
+```
+
+```php Loop Variable
+@foreach($tours as $tour)
+    @if($loop->first)
+        <p>This is the first iteration.</p>
+    @endif
+    
+    <p>Tour #{{ $loop->index }}: {{ $tour->hotel }}</p>
+    
+    @if($loop->last)
+        <p>This is the last iteration.</p>
+    @endif
+@endforeach
+```
+
+</CodeGroup>
+
+### Forms
+
+#### CSRF Protection
+
+All POST forms must include CSRF token:
+
+```php
+<form action="{{ route('tour.store') }}" method="POST">
+    @csrf
+    <!-- form fields -->
+</form>
+```
+
+#### Method Spoofing
+
+For PUT, PATCH, DELETE requests:
+
+```php
+<form action="{{ route('tour.update', $tour->id) }}" method="POST">
+    @csrf
+    @method('PUT')
+    <!-- form fields -->
+</form>
+```
+
+#### Validation Errors
+
+```php
+@if($errors->any())
+<div class="alert alert-danger">
+    <ul>
+        @foreach($errors->all() as $error)
+        <li>{{ $error }}</li>
+        @endforeach
+    </ul>
+</div>
+@endif
+
+<!-- Individual field error -->
+<input type="text" name="hotel" class="form-control @error('hotel') is-invalid @enderror" value="{{ old('hotel') }}">
+@error('hotel')
+    <span class="invalid-feedback">{{ $message }}</span>
+@enderror
+```
+
+#### Flash Messages
+
+```php
+@if(session('success'))
+<div class="alert alert-success">
+    {{ session('success') }}
+</div>
+@endif
+
+@if(session('error'))
+<div class="alert alert-danger">
+    {{ session('error') }}
+</div>
+@endif
+```
+
+### Data Display
+
+<CodeGroup>
+
+```php Escaped Output
+<!-- HTML-escaped (safe) -->
+<p>{{ $tour->hotel }}</p>
+<p>{{ $user->name }}</p>
+```
+
+```php Raw Output
+<!-- Unescaped (use with caution) -->
+<div>{!! $blog->content !!}</div>
+```
+
+```php With Default
+<!-- Show default if variable is empty -->
+<p>{{ $tour->additional_info ?? 'No additional information' }}</p>
+```
+
+</CodeGroup>
+
+## Asset Management
+
+### Loading Assets
+
+```php
+<!-- CSS -->
+<link rel="stylesheet" href="{{ asset('css/main.css') }}">
+
+<!-- JavaScript -->
+<script src="{{ asset('js/app.js') }}"></script>
+
+<!-- Images -->
+<img src="{{ asset('images/logo.png') }}" alt="Logo">
+
+<!-- Uploaded files (from storage) -->
+<img src="{{ asset('storage/' . $tour->image) }}" alt="{{ $tour->hotel }}">
+```
+
+### Secure Assets (Production)
+
+```php
+@production
+<link rel="stylesheet" href="{{ secure_asset('css/main.css') }}" />
+@endproduction
+
+<link rel="stylesheet" href="{{ asset('css/main.css') }}" />
+```
+
+## URL Generation
+
+<CodeGroup>
+
+```php Named Routes
+<a href="{{ route('safaris') }}">View Safaris</a>
+<a href="{{ route('tour.show', $tour->id) }}">View Tour</a>
+<a href="{{ route('booking.create', ['destination' => $tour->hotel]) }}">Book Now</a>
+```
+
+```php URL Helper
+<a href="{{ url('/about') }}">About Us</a>
+<a href="{{ url()->current() }}">Current Page</a>
+<a href="{{ url()->previous() }}">Go Back</a>
+```
+
+</CodeGroup>
+
+## Pagination
+
+Safaris Web uses Laravel's built-in pagination:
+
+```php
+<!-- In controller -->
+$tours = Tours::paginate(20);
+
+<!-- In view -->
+@foreach($tours as $tour)
+    <div>{{ $tour->hotel }}</div>
+@endforeach
+
+<!-- Pagination links -->
+<div class="mt-4">
+    {{ $tours->links() }}
+</div>
+
+<!-- Bootstrap 5 pagination -->
+{{ $tours->links('pagination::bootstrap-5') }}
+```
+
+## Components & Includes
+
+### Including Views
+
+```php
+<!-- Include a partial view -->
+@include('partials.tour-card', ['tour' => $tour])
+
+<!-- Include if exists -->
+@includeIf('partials.alert')
+
+<!-- Include when condition is true -->
+@includeWhen($showHeader, 'partials.header')
+```
+
+### Creating Reusable Components
+
+Create a tour card component:
+
+```php resources/views/components/tour-card.blade.php
+<div class="card mb-3">
+    <img src="{{ asset('storage/' . $tour->image) }}" class="card-img-top" alt="{{ $tour->hotel }}">
+    <div class="card-body">
+        <h5 class="card-title">{{ $tour->hotel }}</h5>
+        <p class="card-text">{{ $tour->location }}</p>
+        <p class="text-primary">
+            From ${{ $tour->per_person_sharing }}
+        </p>
+        <a href="{{ route('addtour.show', $tour->id) }}" class="btn btn-primary">View Details</a>
+    </div>
+</div>
+```
+
+Use the component:
+
+```php
+@foreach($tours as $tour)
+    <x-tour-card :tour="$tour" />
+@endforeach
+```
+
+## Owl Carousel Integration
+
+Safaris Web uses Owl Carousel for image sliders (`index.blade.php:436-458`):
+
+```php
+<link rel="stylesheet" href="{{ asset('OwlCarousel2-2.3.4/dist/assets/owl.carousel.min.css') }}">
+
+<div class="owl-carousel owl-theme">
+    @foreach($tours as $tour)
+    <div class="item">
+        <img src="{{ asset('storage/' . $tour->image) }}" alt="{{ $tour->hotel }}">
+    </div>
+    @endforeach
+</div>
+
+<script src="{{ asset('OwlCarousel2-2.3.4/dist/owl.carousel.js') }}"></script>
+<script>
+$('.owl-carousel').owlCarousel({
+    margin: 10,
+    loop: true,
+    dots: false,
+    nav: true,
+    autoPlay: true,
+    responsive: {
+        0: { items: 1 },
+        600: { items: 3 },
+        1000: { items: 4 }
+    }
+});
+</script>
+```
+
+## Best Practices
+
+### 1. Always Escape User Input
+
+```php
+<!-- Good -->
+<p>{{ $user->name }}</p>
+
+<!-- Bad (XSS vulnerability) -->
+<p>{!! $user->name !!}</p>
+```
+
+### 2. Use Named Routes
+
+```php
+<!-- Good -->
+<a href="{{ route('tour.show', $tour->id) }}">View Tour</a>
+
+<!-- Avoid -->
+<a href="/tours/{{ $tour->id }}">View Tour</a>
+```
+
+### 3. Keep Logic in Controllers
+
+```php
+<!-- Good: Simple display -->
+<p>{{ $tour->formatted_price }}</p>
+
+<!-- Bad: Complex logic in view -->
+<p>{{ '$' . number_format($tour->per_person_sharing, 2) }}</p>
+```
+
+### 4. Use Blade Components for Reusable UI
+
+Create components for repeated HTML structures.
+
+### 5. Optimize Images
+
+Use responsive images:
+
+```php
+<img src="{{ asset('storage/' . $tour->image) }}" 
+     class="img-fluid" 
+     alt="{{ $tour->hotel }}" 
+     loading="lazy">
+```
+
+## JavaScript Integration
+
+Example from layout (`index.blade.php:400-421`):
+
+```php
+<script>
+// Back to top button
+myButton = document.getElementById("myBtn");
+
+window.onscroll = function () {
+    scrollFunction();
+};
+
+function scrollFunction() {
+    if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+        myButton.style.display = "block";
+    } else {
+        myButton.style.display = "none";
+    }
+}
+
+function topFunction() {
+    document.body.scrollTop = 0;
+    document.documentElement.scrollTop = 0;
+}
+</script>
+```
+
+## Next Steps
+
+- Learn about [Middleware](/development/middleware) for route protection
+- Explore [Adding Features](/development/adding-features) for new functionality
+- Review [Routes & Controllers](/development/routes-controllers) for backend logic

@@ -1,0 +1,144 @@
+---
+title: 'Admin Dashboard Overview'
+description: 'Complete guide to the Safaris Web admin dashboard, navigation, and core capabilities'
+---
+
+## Introduction
+
+The Safaris Web admin dashboard provides a comprehensive content management system for managing tours, bookings, blog posts, videos, categories, and customer enquiries. All administrative functions require authentication and email verification.
+
+## Accessing the Admin Dashboard
+
+The admin dashboard can be accessed via two routes:
+
+- `/admin` - Main admin page (route: `admin`)
+- `/dashboard` - Alternative dashboard route (route: `dashboard`)
+
+Both routes are protected by the `auth` middleware, requiring users to be logged in.
+
+**Route Definition:**
+```php
+Route::get('/admin', [ToursController::class, 'admin'])
+  ->name('admin')
+  ->middleware('auth');
+
+Route::get('/dashboard', [HomeController::class, 'admin'])
+  ->name('dashboard')
+  ->middleware('auth');
+```
+
+## Core Capabilities
+
+The admin dashboard provides the following management capabilities:
+
+### Content Management
+
+<CardGroup cols={2}>
+  <Card title="Tours Management" icon="map" href="/admin/managing-tours">
+    Create, edit, and publish tour packages with pricing, images, and details
+  </Card>
+  
+  <Card title="Bookings" icon="calendar-check" href="/admin/managing-bookings">
+    View, confirm, and manage customer tour bookings
+  </Card>
+  
+  <Card title="Blog Posts" icon="newspaper" href="/admin/managing-blogs">
+    Publish and manage blog content with multiple images
+  </Card>
+  
+  <Card title="Videos" icon="video" href="/admin/managing-videos">
+    Add and manage video content from URLs
+  </Card>
+</CardGroup>
+
+### Organization
+
+<CardGroup cols={2}>
+  <Card title="Categories" icon="folder-tree" href="/admin/managing-categories">
+    Organize tours into categories and subcategories
+  </Card>
+  
+  <Card title="Enquiries" icon="envelope" href="/admin/enquiries">
+    Review and respond to customer enquiries
+  </Card>
+</CardGroup>
+
+### User Administration
+
+<CardGroup cols={2}>
+  <Card title="User Management" icon="users" href="/admin/user-management">
+    Manage user accounts and credentials
+  </Card>
+  
+  <Card title="User Roles" icon="shield" href="/admin/user-roles">
+    Understand user permissions and access levels
+  </Card>
+</CardGroup>
+
+## Navigation Structure
+
+The admin interface is organized into the following sections:
+
+1. **Dashboard** - Overview of system activity
+2. **Tours** - Tour package management (`/addtour`)
+3. **Bookings** - Booking management (`/bookings`)
+4. **Blog** - Blog post management (`/blogs`, `/all-blogs`)
+5. **Videos** - Video content management (`/videos`)
+6. **Categories** - Category management (`/categories`)
+7. **Enquiries** - Customer enquiry management (`/enquiries`)
+8. **Users** - User account management (`/users`)
+9. **Profile** - Admin profile and personal bookings (`/profile`)
+
+## Middleware Protection
+
+Most admin routes are protected by two middleware layers:
+
+<AccordionGroup>
+  <Accordion title="auth - Authentication Middleware">
+    Ensures users are logged in before accessing admin functionality.
+    
+    **Redirects to:** Login page if not authenticated
+  </Accordion>
+  
+  <Accordion title="verified - Email Verification Middleware">
+    Requires users to verify their email address before performing critical operations.
+    
+    **Protected operations:** Create, update, delete operations for all content types
+    
+    **Redirects to:** Email verification notice if not verified
+  </Accordion>
+</AccordionGroup>
+
+## Quick Actions
+
+Common administrative tasks:
+
+<Steps>
+  <Step title="Create a New Tour">
+    Navigate to `/addtour/create` to access the tour creation form
+  </Step>
+  
+  <Step title="View All Bookings">
+    Go to `/bookings` to see all customer bookings
+  </Step>
+  
+  <Step title="Publish a Blog Post">
+    Create at `/blogs/create`, then toggle publish status
+  </Step>
+  
+  <Step title="Manage Categories">
+    Access `/categories` to organize tour categories
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/admin/authentication">
+    Learn about login and email verification
+  </Card>
+  
+  <Card title="Managing Tours" icon="map" href="/admin/managing-tours">
+    Start creating tour packages
+  </Card>
+</CardGroup>

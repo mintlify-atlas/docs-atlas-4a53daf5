@@ -1,0 +1,665 @@
+---
+title: 'Managing Bookings'
+description: 'Complete guide to viewing, editing, confirming, and deleting customer tour bookings'
+---
+
+## Overview
+
+The Bookings Management system allows you to view and manage customer tour bookings, confirm reservations, and track booking details. All booking management operations are handled by the `BookingController`.
+
+**Controller:** `App\Http\Controllers\BookingController`  
+**Model:** `App\Models\Booking`  
+**Table:** `tour_bookings`  
+**Route Prefix:** `/bookings`
+
+<Note>
+  All booking management operations require `['auth', 'verified']` middleware - you must be logged in and have a verified email.
+</Note>
+
+## Booking Routes
+
+| Action | Route | Name | Method | Middleware |
+|--------|-------|------|--------|------------|
+| List all bookings | `/bookings` | `bookings` | GET | `['auth', 'verified']` |
+| View booking details | `/bookings/show/{id}` | `bookings.show` | GET | `['auth', 'verified']` |
+| Create booking form | `/bookings/create/{destination}` | `bookings.create` | GET | None |
+| Store new booking | `/bookings/new` | `bookings.store` | POST | `['auth', 'verified']` |
+| Edit booking form | `/bookings/edit/{id}` | `bookings.edit` | GET | `['auth', 'verified']` |
+| Update booking | `/bookings/update/{id}` | `bookings.update` | POST | `['auth', 'verified']` |
+| Delete booking | `/bookings/delete/{id}` | `bookings.delete` | DELETE | `['auth', 'verified']` |
+| Confirm booking | `/bookings/publish/{id}` | `bookings.confirm` | DELETE | `['auth', 'verified']` |
+
+<Warning>
+  The confirm route uses DELETE method (should probably be PUT/PATCH). This may be a typo in the route definition.
+</Warning>
+
+## Booking Model
+
+The Booking model defines the fillable attributes:
+
+```php
+protected $table = 'tour_bookings';
+
+protected $fillable = [
+    'first_name', 
+    'last_name', 
+    'email', 
+    'phone_number', 
+    'adults', 
+    'kids'
+];
+```
+
+### Database Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | integer | Auto | Unique booking identifier |
+| `first_name` | string | Yes | Customer's first name |
+| `last_name` | string | Yes | Customer's last name |
+| `email` | string | Yes | Customer's email address |
+| `phone_number` | string | Yes | Customer's contact number |
+| `country` | string | No | Customer's country |
+| `arrival_date` | date | Yes | Expected arrival date |
+| `adults` | integer | Yes | Number of adult travelers |
+| `kids` | integer | Yes | Number of children |
+| `destination` | string | Yes | Tour destination |
+| `transaction_code` | string | Yes | Payment transaction code |
+| `special_requirements` | text | No | Any special needs or requests |
+| `status` | boolean | Auto | Confirmation status (0=pending, 1=confirmed) |
+| `user_id` | integer | Auto | ID of user who created booking |
+| `created_at` | datetime | Auto | Booking creation timestamp |
+| `updated_at` | datetime | Auto | Last update timestamp |
+
+## Viewing Bookings
+
+### List All Bookings
+
+**Route:** `/bookings`  
+**Method:** GET  
+**Controller Method:** `index()`  
+*Source: BookingController.php:21-26*
+
+```php
+public function index()
+{
+    $bookings = Booking::latest()->paginate(10);
+    return view('bookings.index', compact('bookings'))
+        ->with('i', (request()->input('page', 1) - 1) * 5);
+}
+```
+
+**Features:**
+- Displays 10 bookings per page
+- Sorted by newest first (`latest()`)
+- Paginated results
+- Shows all bookings from all users
+
+### View User Profile Bookings
+
+**Route:** `/profile`  
+**Method:** GET  
+**Controller Method:** `profile()`  
+*Source: BookingController.php:29-33*
+
+```php
+public function profile()
+{
+    $bookings = Booking::where('user_id', Auth::user()->id)
+        ->latest()
+        ->paginate(10);
+    return view('users.profile', compact('bookings'))
+        ->with('i', (request()->input('page', 1) - 1) * 5);
+}
+```
+
+**Features:**
+- Shows only bookings created by logged-in user
+- Filtered by `user_id`
+- Sorted by newest first
+- Paginated (10 per page)
+
+### View Single Booking
+
+**Route:** `/bookings/show/{id}`  
+**Method:** GET  
+**Controller Method:** `show(Booking $booking)`  
+*Source: BookingController.php:109-113*
+
+```php
+public function show(Booking $booking)
+{
+    return view('tours.show', compact('booking'));
+}
+```
+
+## Creating a Booking
+
+<Steps>
+  <Step title="Navigate to Create Form">
+    Access the booking form at `/bookings/create/{destination}` where `{destination}` is the tour name
+    
+    **Route Name:** `bookings.create`  
+    **Middleware:** None (public can access)
+  </Step>
+  
+  <Step title="Fill Required Fields">
+    Complete all required form fields:
+    - First name
+    - Last name
+    - Email (enter twice for confirmation)
+    - Phone number
+    - Country (optional)
+    - Arrival date
+    - Number of adults
+    - Number of kids
+    - Destination (pre-filled from URL)
+    - Transaction code (payment reference)
+    - Special requirements (optional)
+  </Step>
+  
+  <Step title="Complete reCAPTCHA">
+    The form includes Google reCAPTCHA verification to prevent spam
+  </Step>
+  
+  <Step title="Submit the Form">
+    Submit to `/bookings/new` via POST
+  </Step>
+</Steps>
+
+### Create Form
+
+**Route:** `/bookings/create/{destination}`  
+**Method:** GET  
+**Controller Method:** `create($destination)`  
+*Source: BookingController.php:39-57*
+
+```php
+public function create($destination)
+{
+    $tours = Tours::latest()->limit(3)->get();
+    $categories = Category::all();
+    $blogs = Blog::all();
+    
+    return view('bookings.create', [
+        'categories' => $categories,
+        'tours' => $tours,
+        'blogs' => $blogs,
+        'destination' => $destination
+    ])->with('success', 'you must be logged in to book a destination.');
+}
+```
+
+<Note>
+  The create form is **publicly accessible** (no authentication required), but storing the booking requires authentication and email verification.
+</Note>
+
+### Store New Booking
+
+**Route:** `/bookings/new`  
+**Method:** POST  
+**Controller Method:** `store(Request $request)`  
+*Source: BookingController.php:65-101*
+
+#### Validation Rules
+
+```php
+$request->validate([
+    'first_name' => 'required',
+    'last_name' => 'required',
+    'phone_number' => 'required',
+    'arrival_date' => 'required',
+    'adults' => 'required',
+    'kids' => 'required',
+    'destination' => 'required',
+    'g-recaptcha-response' => 'required|captcha',
+    'transaction_code' => 'required'
+]);
+```
+
+**Required Fields:**
+- Customer information: first_name, last_name, phone_number
+- Booking details: arrival_date, adults, kids, destination
+- Payment: transaction_code
+- Security: g-recaptcha-response (reCAPTCHA)
+
+#### Email Confirmation Logic
+
+```php
+if($request->email1 == $request->email2) {
+    $email = $request->email1;
+} else {
+    return redirect()->route('bookings.create')
+        ->with('failure', 'please provide matching emails');
+}
+```
+
+**Email Validation:**
+- User must enter email twice (email1 and email2)
+- Both entries must match exactly
+- If they don't match, booking is rejected
+
+#### User Association
+
+The authenticated user's ID is automatically attached:
+
+```php
+$booking->user_id = Auth::user()->id;
+```
+*Source: BookingController.php:97*
+
+#### Success Response
+
+After successful booking:
+
+```php
+return redirect()->route('profile')
+    ->with('success', 'Booking has been successfull, We will contact you within 24hrs!');
+```
+
+## Editing a Booking
+
+<Steps>
+  <Step title="Navigate to Edit Form">
+    Click edit on a booking or navigate to `/bookings/edit/{id}`
+    
+    **Route Name:** `bookings.edit`  
+    **Middleware:** `['auth', 'verified']`
+  </Step>
+  
+  <Step title="Modify Booking Details">
+    Update any fields you want to change
+  </Step>
+  
+  <Step title="Submit Changes">
+    Submit to `/bookings/update/{id}` via POST
+  </Step>
+</Steps>
+
+### Edit Form
+
+**Route:** `/bookings/edit/{id}`  
+**Method:** GET  
+**Controller Method:** `edit(Booking $booking)`  
+*Source: BookingController.php:121-125*
+
+```php
+public function edit(Booking $booking)
+{
+    return view('tours.edit', compact('booking'));
+}
+```
+
+### Update Booking
+
+**Route:** `/bookings/update/{id}`  
+**Method:** POST  
+**Controller Method:** `update(Request $request, Booking $booking)`  
+*Source: BookingController.php:134-150*
+
+#### Validation Rules
+
+```php
+$request->validate([
+    'first_name' => 'required',
+    'last_name' => 'required',
+    'email' => 'required',
+    'phone_number' => 'required',
+    'arrival_date' => 'required',
+    'adults' => 'required',
+    'kids' => 'required',
+]);
+```
+
+#### Update Logic
+
+```php
+$booking->update($request->all());
+return redirect()->route('tours.bookings')
+    ->with('success', 'Booking updated successfully!');
+```
+
+<Warning>
+  The redirect route name `tours.bookings` doesn't exist in the route definitions. This may cause an error. Should probably be `bookings`.
+</Warning>
+
+## Confirming Bookings
+
+### Confirm/Unconfirm Booking
+
+**Route:** `/bookings/publish/{id}`  
+**Method:** DELETE (should be PUT/PATCH)  
+**Controller Method:** `confirm($id)`  
+*Source: BookingController.php:168-180*
+
+```php
+public function confirm($id)
+{
+    $booking = Booking::find($id);
+    
+    if ($booking->status == 0) {
+        $booking->status = 1;  // Confirm
+        $booking->update();
+    } else {
+        $booking->status = 0;  // Unconfirm
+        $booking->update();
+    }
+    
+    return redirect()->route('bookings')
+        ->with('success', 'Booking deleted successfully!');
+}
+```
+
+**Booking Status:**
+- `status = 0` - Pending (awaiting confirmation)
+- `status = 1` - Confirmed (booking approved)
+
+<Warning>
+  The success message says "Booking deleted successfully!" but the method actually toggles confirmation status. This is misleading.
+</Warning>
+
+### How to Use
+
+<Tabs>
+  <Tab title="Confirm a Pending Booking">
+    ```bash
+    # DELETE request to confirm booking with ID 5
+    DELETE /bookings/publish/5
+    ```
+    
+    If `status = 0`, it will be set to `1` (confirmed)
+  </Tab>
+  
+  <Tab title="Unconfirm a Booking">
+    ```bash
+    # DELETE request to unconfirm booking with ID 5
+    DELETE /bookings/publish/5
+    ```
+    
+    If `status = 1`, it will be set to `0` (pending)
+  </Tab>
+</Tabs>
+
+<Note>
+  The confirm endpoint toggles the status. Check the current status before calling this endpoint.
+</Note>
+
+## Deleting a Booking
+
+**Route:** `/bookings/delete/{id}`  
+**Method:** DELETE  
+**Controller Method:** `destroy(Booking $booking, $id)`  
+*Source: BookingController.php:158-164*
+
+```php
+public function destroy(Booking $booking, $id)
+{
+    $booking = Booking::find($id);
+    $booking->delete();
+    return redirect()->route('bookings')
+        ->with('success', 'Booking deleted successfully!');
+}
+```
+
+<Warning>
+  **Deletion is permanent!** There is no soft delete implemented. Once a booking is deleted, it cannot be recovered.
+</Warning>
+
+<Steps>
+  <Step title="Locate the Booking">
+    Find the booking you want to delete in the bookings list at `/bookings`
+  </Step>
+  
+  <Step title="Confirm Deletion">
+    Click the delete button (should show confirmation dialog)
+  </Step>
+  
+  <Step title="Booking Removed">
+    The booking is permanently deleted from the database and you're redirected to the bookings list
+  </Step>
+</Steps>
+
+## Booking Workflow Diagram
+
+<Steps>
+  <Step title="Customer Creates Booking">
+    Customer fills out booking form at `/bookings/create/{destination}`
+    - Must complete reCAPTCHA
+    - Must provide matching email addresses
+    - Must include payment transaction code
+  </Step>
+  
+  <Step title="Booking Submitted">
+    Booking is stored with `status = 0` (pending)
+    - Customer receives success message
+    - Redirected to profile page
+    - Admin can view in bookings list
+  </Step>
+  
+  <Step title="Admin Reviews Booking">
+    Admin accesses `/bookings` to view all pending bookings
+    - Can view full booking details
+    - Can verify payment transaction code
+    - Can check availability
+  </Step>
+  
+  <Step title="Admin Confirms Booking">
+    Admin clicks confirm button (`/bookings/publish/{id}`)
+    - Status changes to `status = 1` (confirmed)
+    - Customer should be notified (manual process)
+  </Step>
+  
+  <Step title="Optional: Edit or Delete">
+    Admin can:
+    - Edit booking details if needed
+    - Delete booking if it's fraudulent or cancelled
+    - Unconfirm if there's an issue
+  </Step>
+</Steps>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Booking Verification" icon="check-circle">
+    - Always verify transaction codes before confirming
+    - Check customer email and phone number validity
+    - Verify availability for the requested date
+    - Confirm number of travelers is within tour capacity
+    - Review special requirements for feasibility
+  </Accordion>
+  
+  <Accordion title="Communication" icon="comments">
+    - Contact customer within 24 hours of booking
+    - Send confirmation email after approving booking
+    - Follow up on special requirements
+    - Provide tour details and meeting information
+    - Send reminders before arrival date
+  </Accordion>
+  
+  <Accordion title="Status Management" icon="tasks">
+    - Keep `status = 0` for unverified bookings
+    - Set `status = 1` only after payment confirmation
+    - Don't delete bookings unless necessary (keep for records)
+    - Update booking details if customer requests changes
+  </Accordion>
+  
+  <Accordion title="Data Quality" icon="database">
+    - Ensure phone numbers include country codes
+    - Validate email format
+    - Store accurate arrival dates
+    - Keep transaction codes for accounting
+    - Document special requirements clearly
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Email Mismatch Error" icon="envelope">
+    **Error:** "please provide matching emails"
+    
+    **Cause:** email1 and email2 fields don't match
+    
+    **Solution:**
+    - User must enter exact same email twice
+    - Check for typos, spaces, or case differences
+    - Ensure both fields are properly filled
+  </Accordion>
+  
+  <Accordion title="reCAPTCHA Validation Failed" icon="shield-alt">
+    **Error:** Validation fails on g-recaptcha-response
+    
+    **Cause:** reCAPTCHA not completed or expired
+    
+    **Solution:**
+    - Ensure user completes reCAPTCHA challenge
+    - Check if reCAPTCHA keys are configured in `.env`
+    - Verify reCAPTCHA domain is whitelisted
+  </Accordion>
+  
+  <Accordion title="Cannot Access Bookings" icon="lock">
+    **Requirements:**
+    - Must be logged in (`auth` middleware)
+    - Email must be verified (`verified` middleware)
+    
+    **Solution:**
+    - Log in to your account
+    - Verify your email if you haven't already
+    - Check that your account has proper permissions
+  </Accordion>
+  
+  <Accordion title="Redirect Error After Update" icon="exclamation-triangle">
+    **Error:** Route [tours.bookings] not defined
+    
+    **Cause:** The redirect route name in update method is incorrect
+    
+    **Solution:**
+    - This is a bug in the code (line 149 of BookingController.php)
+    - Manually change redirect to: `redirect()->route('bookings')`
+  </Accordion>
+  
+  <Accordion title="Status Not Changing" icon="toggle-on">
+    **Issue:** Clicking confirm doesn't change status
+    
+    **Possible causes:**
+    - JavaScript not properly sending DELETE request
+    - CSRF token missing or invalid
+    - Middleware blocking request
+    
+    **Solution:**
+    - Check browser console for errors
+    - Ensure form includes `@csrf` token
+    - Verify user is authenticated and verified
+  </Accordion>
+</AccordionGroup>
+
+## User Relationship
+
+Bookings are linked to users through the `user_id` field:
+
+```php
+// In User model (User.php:45-48)
+public function bookings()
+{
+    return $this->hasMany('App\\Booking');
+}
+```
+
+**Usage:**
+
+```php
+// Get all bookings for a user
+$user = User::find(1);
+$userBookings = $user->bookings;
+
+// Get booking with user information
+$booking = Booking::with('user')->find(1);
+```
+
+## Security Considerations
+
+<Warning>
+  **Important Security Notes:**
+  
+  1. The booking create form is publicly accessible, but only authenticated users can submit
+  2. reCAPTCHA helps prevent spam bookings
+  3. Email confirmation (entering twice) helps prevent typos
+  4. All booking management requires authentication and verification
+  5. Consider adding authorization checks (can user edit this specific booking?)
+</Warning>
+
+## Code Issues and Recommendations
+
+<AccordionGroup>
+  <Accordion title="Incorrect HTTP Methods" icon="exclamation-circle">
+    **Issue:** Confirm route uses DELETE method
+    
+    ```php
+    // Current (incorrect)
+    Route::delete('/bookings/publish/{id}', ...)
+    
+    // Should be
+    Route::put('/bookings/publish/{id}', ...)
+    ```
+    
+    **Impact:** Semantically incorrect - DELETE should remove resources, not update them
+  </Accordion>
+  
+  <Accordion title="Misleading Success Messages" icon="comment">
+    **Issue:** Confirm method shows "Booking deleted successfully!" but actually confirms/unconfirms
+    
+    ```php
+    // Current (misleading)
+    ->with('success', 'Booking deleted successfully!');
+    
+    // Should be
+    ->with('success', 'Booking status updated!');
+    ```
+  </Accordion>
+  
+  <Accordion title="Invalid Route Name" icon="route">
+    **Issue:** Update method redirects to non-existent route
+    
+    ```php
+    // Current (broken)
+    return redirect()->route('tours.bookings')
+    
+    // Should be
+    return redirect()->route('bookings')
+    ```
+  </Accordion>
+  
+  <Accordion title="Missing Soft Deletes" icon="trash-restore">
+    **Issue:** Bookings are permanently deleted with no recovery option
+    
+    **Recommendation:** Implement soft deletes:
+    
+    ```php
+    use Illuminate\Database\Eloquent\SoftDeletes;
+    
+    class Booking extends Model {
+        use SoftDeletes;
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Managing Tours" icon="map" href="/admin/managing-tours">
+    Learn about tour management
+  </Card>
+  
+  <Card title="User Management" icon="users" href="/admin/user-management">
+    Manage customer accounts
+  </Card>
+  
+  <Card title="Enquiries" icon="envelope" href="/admin/enquiries">
+    Handle customer enquiries
+  </Card>
+  
+  <Card title="User Roles" icon="shield" href="/admin/user-roles">
+    Understand permissions for booking management
+  </Card>
+</CardGroup>

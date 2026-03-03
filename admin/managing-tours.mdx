@@ -1,0 +1,608 @@
+---
+title: 'Managing Tours'
+description: 'Complete guide to creating, editing, publishing, and deleting tour packages in Safaris Web'
+---
+
+## Overview
+
+The Tours Management system allows you to create and manage tour packages with pricing, images, categories, and detailed information. All tour management operations are handled by the `ToursController`.
+
+**Controller:** `App\Http\Controllers\ToursController`  
+**Model:** `App\Models\Tours`  
+**Route Prefix:** `/addtour`
+
+<Note>
+  All tour management operations require `['auth', 'verified']` middleware - you must be logged in and have a verified email.
+</Note>
+
+## Tour Routes
+
+| Action | Route | Name | Method | Middleware |
+|--------|-------|------|--------|------------|
+| List all tours | `/addtour` | `tours` | GET | `['auth', 'verified']` |
+| View tour details | `/addtour/show/{id}` | `addtour.show` | GET | None |
+| Create tour form | `/addtour/create` | `addtour.create` | GET | `['auth', 'verified']` |
+| Store new tour | `/addtour/store` | `addtour.store` | POST | `['auth', 'verified']` |
+| Edit tour form | `/addtour/edit/{id}` | `addtour.edit` | GET | `['auth', 'verified']` |
+| Update tour | `/addtour/update/{id}` | `addtour.update` | POST | `['auth', 'verified']` |
+| Delete tour | `/addtour/delete/{id}` | `addtour.delete` | DELETE | `['auth', 'verified']` |
+| Publish/unpublish | `/addtour/publish/{id}` | `addtour.publish` | PUT | `['auth', 'verified']` |
+
+## Tour Model
+
+The Tours model defines the fillable attributes:
+
+```php
+protected $fillable = [
+    'hotel', 
+    'transport', 
+    'image', 
+    'per_person_sharing', 
+    'single_room', 
+    'meals'
+];
+```
+
+### Database Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | integer | Auto | Unique tour identifier |
+| `hotel` | string | Yes | Hotel/accommodation details |
+| `transport` | string | Yes | Transportation information |
+| `single_room` | decimal | Yes | Price for single room occupancy |
+| `per_person_sharing` | decimal | Yes | Price per person for shared occupancy |
+| `meals` | string | Yes | Meal plan details |
+| `category` | string | Yes | Main tour category |
+| `sub_category` | string | Yes | Tour subcategory |
+| `location` | string | Yes | Tour destination/location |
+| `additional_info` | text | No | Extra tour information |
+| `image` | string | Yes | Main tour image path |
+| `image1` | string | Yes | Second image path |
+| `image2` | string | No | Third image path |
+| `image3` | string | No | Fourth image path |
+| `image4` | string | No | Fifth image path |
+| `image5` | string | No | Sixth image path |
+| `image6` | string | No | Seventh image path |
+| `published` | boolean | Auto | Publication status (0=draft, 1=published) |
+| `user_id` | integer | Auto | ID of user who created the tour |
+| `created_at` | datetime | Auto | Creation timestamp |
+| `updated_at` | datetime | Auto | Last update timestamp |
+
+## Viewing Tours
+
+### List All Tours (Admin)
+
+**Route:** `/addtour`  
+**Method:** GET  
+**Controller Method:** `index()`  
+*Source: ToursController.php:34-39*
+
+```php
+public function index()
+{
+    $tours = Tours::latest()->paginate(20);
+    return view('tours.index', compact('tours'))
+        ->with('i', (request()->input('page', 1) - 1) * 5);
+}
+```
+
+**Features:**
+- Displays 20 tours per page
+- Sorted by newest first (`latest()`)
+- Paginated results
+
+### View Single Tour
+
+**Route:** `/addtour/show/{id}`  
+**Method:** GET  
+**Controller Method:** `show($id)`  
+*Source: ToursController.php:143-157*
+
+```php
+public function show(Tours $tours, $id)
+{
+    $tours = Tours::find($id);
+    $categories = Category::all();
+    $blogs = Blog::all();
+    
+    return view('tours.show', compact('tours'), [
+        'categories' => $categories,
+        'blogs' => $blogs
+    ]);
+}
+```
+
+## Creating a Tour
+
+<Steps>
+  <Step title="Navigate to Create Form">
+    Access the tour creation form at `/addtour/create`
+    
+    **Route Name:** `addtour.create`  
+    **Middleware:** `['auth', 'verified']`
+  </Step>
+  
+  <Step title="Fill Required Fields">
+    Complete all required form fields:
+    - Hotel/accommodation details
+    - Transport information
+    - Single room price
+    - Per person sharing price
+    - Meals information
+    - Category (select from existing categories)
+    - Subcategory
+    - Location
+    - Main image (required)
+    - Second image (required)
+    - Additional images (optional: up to 5 more)
+  </Step>
+  
+  <Step title="Add Optional Information">
+    Include any additional tour information in the `additional_info` field
+  </Step>
+  
+  <Step title="Submit the Form">
+    Submit to `/addtour/store` via POST
+  </Step>
+</Steps>
+
+### Create Form
+
+**Route:** `/addtour/create`  
+**Method:** GET  
+**Controller Method:** `create()`  
+*Source: ToursController.php:46-55*
+
+```php
+public function create()
+{
+    $categories = Category::all();
+    
+    return view('tours.create', [
+        'categories' => $categories,
+    ]);
+}
+```
+
+### Store New Tour
+
+**Route:** `/addtour/store`  
+**Method:** POST  
+**Controller Method:** `store(Request $request)`  
+*Source: ToursController.php:63-135*
+
+#### Validation Rules
+
+```php
+$request->validate([
+    'hotel' => 'required',
+    'transport' => 'required',
+    'image' => 'required|mimes:jpg,jpeg,svg,png,webp',
+    'image1' => 'required|mimes:jpg,jpeg,svg,png,webp',
+    'single_room' => 'required',
+    'per_person_sharing' => 'required',
+    'meals' => 'required',
+    'category' => 'required',
+    'sub_category' => 'required',
+    'location' => 'required',
+]);
+```
+
+**Accepted Image Formats:** jpg, jpeg, svg, png, webp
+
+#### Image Handling
+
+The system handles up to 7 images:
+
+```php
+// Required images
+$path = $request->image->store('images', 'public');
+$path1 = $request->image1->store('images', 'public');
+$tours->image = $path;
+$tours->image1 = $path1;
+
+// Optional images (image2 through image6)
+if($request->image2) {
+    $path2 = $request->image2->store('images', 'public');
+    $tours->image2 = $path2;
+}
+```
+
+**Image Storage:**
+- Stored in `storage/app/public/images/`
+- Accessible via `storage/images/` symlink
+- Automatic filename generation
+
+#### User Association
+
+The authenticated user's ID is automatically attached:
+
+```php
+$tours->user_id = Auth::id();
+```
+*Source: ToursController.php:130*
+
+#### Success Response
+
+After successful creation:
+
+```php
+return redirect()->route('tours')
+    ->with('success', 'You Added a Tour.');
+```
+
+## Editing a Tour
+
+<Steps>
+  <Step title="Navigate to Edit Form">
+    Click edit on a tour or navigate to `/addtour/edit/{id}`
+    
+    **Route Name:** `addtour.edit`  
+    **Middleware:** `['auth', 'verified']`
+  </Step>
+  
+  <Step title="Modify Tour Details">
+    Update any fields you want to change. Images are optional - leave blank to keep existing images.
+  </Step>
+  
+  <Step title="Submit Changes">
+    Submit to `/addtour/update/{id}` via POST
+  </Step>
+</Steps>
+
+### Edit Form
+
+**Route:** `/addtour/edit/{id}`  
+**Method:** GET  
+**Controller Method:** `edit($id)`  
+*Source: ToursController.php:165-177*
+
+```php
+public function edit(Tours $tours, $id)
+{
+    $tours = Tours::find($id);
+    $categories = Category::all();
+    
+    return view('tours.edit', [
+        'categories' => $categories,
+        'tours' => $tours
+    ]);
+}
+```
+
+### Update Tour
+
+**Route:** `/addtour/update/{id}`  
+**Method:** POST  
+**Controller Method:** `update(Request $request, $id)`  
+*Source: ToursController.php:186-241*
+
+#### Validation Rules
+
+```php
+$request->validate([
+    'hotel' => 'required',
+    'transport' => 'required',
+    'single_room' => 'required',
+    'per_person_sharing' => 'required',
+    'meals' => 'required',
+    'category' => 'required',
+    'sub_category' => 'required'
+]);
+```
+
+<Note>
+  Images are **not required** when updating - if no new images are uploaded, the existing images are preserved.
+</Note>
+
+#### Image Update Logic
+
+```php
+if($request->hasFile('image') || $request->hasFile('image2') || 
+   $request->hasFile('image3') || $request->hasFile('image4') || 
+   $request->hasFile('image5') || $request->hasFile('image6')) 
+{
+    // Store new images
+    $path = $request->image->store('images', 'public');
+    $tours->image = $path;
+    // ... etc
+} else {
+    // Keep existing images
+    unset($tours['image']);
+    unset($tours['image2']);
+    // ... etc
+}
+```
+
+#### Success Response
+
+```php
+return redirect()->route('tours')
+    ->with('success', 'You Updated a Tour.');
+```
+
+## Publishing Workflow
+
+### Publish/Unpublish Tour
+
+**Route:** `/addtour/publish/{id}`  
+**Method:** PUT  
+**Controller Method:** `publish($id)`  
+*Source: ToursController.php:260-273*
+
+```php
+public function publish($id)
+{
+    $tour = Tours::find($id);
+    
+    if ($tour->published == 0) {
+        $tour->published = 1;  // Publish
+        $tour->update();
+    } else {
+        $tour->published = 0;  // Unpublish
+        $tour->update();
+    }
+    
+    return redirect()->route('tours');
+}
+```
+
+**Publication States:**
+- `published = 0` - Draft/Unpublished (not visible to public)
+- `published = 1` - Published (visible to public)
+
+<Warning>
+  The publish endpoint toggles the published state. Make sure to check the current state before calling this endpoint.
+</Warning>
+
+### How to Use
+
+<Tabs>
+  <Tab title="Publish a Draft">
+    ```bash
+    # PUT request to publish tour with ID 5
+    PUT /addtour/publish/5
+    ```
+    
+    If `published = 0`, it will be set to `1`
+  </Tab>
+  
+  <Tab title="Unpublish a Tour">
+    ```bash
+    # PUT request to unpublish tour with ID 5
+    PUT /addtour/publish/5
+    ```
+    
+    If `published = 1`, it will be set to `0`
+  </Tab>
+</Tabs>
+
+## Deleting a Tour
+
+**Route:** `/addtour/delete/{id}`  
+**Method:** DELETE  
+**Controller Method:** `destroy($id)`  
+*Source: ToursController.php:249-257*
+
+```php
+public function destroy(Tours $tours, $id)
+{
+    $tours = Tours::find($id);
+    $tours->delete();
+    
+    return redirect()->route('tours')
+        ->with('success', 'You Deleted a Tour.');
+}
+```
+
+<Warning>
+  **Deletion is permanent!** There is no soft delete implemented. Once a tour is deleted, it cannot be recovered.
+</Warning>
+
+<Steps>
+  <Step title="Locate the Tour">
+    Find the tour you want to delete in the tours list at `/addtour`
+  </Step>
+  
+  <Step title="Confirm Deletion">
+    Click the delete button (should show confirmation dialog)
+  </Step>
+  
+  <Step title="Tour Removed">
+    The tour is permanently deleted from the database and you're redirected to the tours list
+  </Step>
+</Steps>
+
+## Public-Facing Routes
+
+Tours can be viewed by the public on these routes:
+
+### Safari Tours Page
+
+**Route:** `/safaris`  
+**Name:** `safaris`  
+**Controller Method:** `safaris()`  
+*Source: ToursController.php:21-27*
+
+```php
+public function safaris() 
+{
+    $categories = Category::all();
+    $blogs = Blog::latest()->limit(2)->get();
+    $safaris = Tours::inRandomOrder()->paginate(20);
+    return view("safaris.index", compact("categories", "blogs", "safaris"));
+}
+```
+
+**Features:**
+- Displays tours in random order
+- Shows 20 tours per page
+- Includes recent blog posts
+- Available categories for filtering
+
+### Tours by Category
+
+**Route:** `/tours/{category}`  
+**Name:** `tour`  
+**Controller:** `HomeController::tours($category)`
+
+Filters tours by specific category.
+
+### Tours by Subcategory
+
+**Route:** `/tours/categories/{sub_category}`  
+**Name:** `tour_cat`  
+**Controller:** `HomeController::tour_cat($sub_category)`
+
+Filters tours by specific subcategory.
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Image Optimization" icon="image">
+    - Compress images before uploading
+    - Use web-optimized formats (webp, jpg)
+    - Recommended dimensions: 1200x800px for main images
+    - Keep file sizes under 500KB
+    - At minimum, provide 2 images (required)
+  </Accordion>
+  
+  <Accordion title="Pricing Information" icon="dollar-sign">
+    - Clearly specify what's included in the price
+    - Use consistent currency formatting
+    - Explain difference between single room and per person sharing
+    - Update prices regularly
+  </Accordion>
+  
+  <Accordion title="Category Selection" icon="folder">
+    - Choose the most relevant category
+    - Use subcategories to further organize tours
+    - Create new categories if needed before adding tours
+    - Be consistent with category naming
+  </Accordion>
+  
+  <Accordion title="Descriptions and Information" icon="text">
+    - Use the `additional_info` field for detailed tour descriptions
+    - Include itinerary details
+    - Mention included activities
+    - Specify tour duration
+    - Add booking policies
+  </Accordion>
+  
+  <Accordion title="Publishing Strategy" icon="rocket">
+    - Create tours as drafts first (`published = 0`)
+    - Review all information before publishing
+    - Test tour display on public pages
+    - Use publish toggle to temporarily hide tours
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Image Upload Fails" icon="exclamation-triangle">
+    **Possible causes:**
+    - File format not supported (must be jpg, jpeg, svg, png, or webp)
+    - File size too large (check PHP upload limits)
+    - Storage directory not writable
+    
+    **Solutions:**
+    - Verify image format
+    - Check `storage/app/public` permissions
+    - Run `php artisan storage:link` to create symlink
+    - Check `php.ini` settings: `upload_max_filesize` and `post_max_size`
+  </Accordion>
+  
+  <Accordion title="Validation Errors" icon="times-circle">
+    **Required fields:**
+    - Hotel, transport, meals
+    - Single room price, per person sharing price
+    - Category, subcategory, location
+    - Image and image1 (when creating)
+    
+    **Note:** All fields must be filled. Empty strings won't pass validation.
+  </Accordion>
+  
+  <Accordion title="Tour Not Visible on Public Site" icon="eye-slash">
+    **Check:**
+    - Is `published = 1`? Tours with `published = 0` are drafts
+    - Is the category active and properly configured?
+    - Clear application cache: `php artisan cache:clear`
+  </Accordion>
+  
+  <Accordion title="Cannot Edit or Delete Tour" icon="lock">
+    **Requirements:**
+    - Must be logged in (`auth` middleware)
+    - Email must be verified (`verified` middleware)
+    - Tour must exist in database
+    
+    If you see "403 Forbidden" or are redirected to login, verify your authentication status.
+  </Accordion>
+</AccordionGroup>
+
+## Example: Creating a Complete Tour
+
+<CodeGroup>
+```php Request Payload
+[
+    'hotel' => 'Serena Safari Lodge - 4 Star Accommodation',
+    'transport' => 'Land Cruiser 4x4 with pop-up roof',
+    'single_room' => '1200.00',
+    'per_person_sharing' => '850.00',
+    'meals' => 'Full Board (Breakfast, Lunch, Dinner)',
+    'category' => 'Wildlife Safari',
+    'sub_category' => 'Big Five Safari',
+    'location' => 'Masai Mara National Reserve',
+    'additional_info' => 'Experience the great migration...',
+    'image' => UploadedFile,  // Main image
+    'image1' => UploadedFile, // Second image
+    'image2' => UploadedFile, // Optional
+]
+```
+
+```php Controller Processing
+// ToursController@store
+$tours = new Tours;
+
+// Store images
+$path = $request->image->store('images', 'public');
+$path1 = $request->image1->store('images', 'public');
+
+// Set attributes
+$tours->hotel = $request->hotel;
+$tours->transport = $request->transport;
+$tours->single_room = $request->single_room;
+$tours->per_person_sharing = $request->per_person_sharing;
+$tours->meals = $request->meals;
+$tours->category = $request->category;
+$tours->sub_category = $request->sub_category;
+$tours->location = $request->location;
+$tours->additional_info = $request->additional_info;
+$tours->image = $path;
+$tours->image1 = $path1;
+$tours->user_id = Auth::id();
+
+$tours->save();
+```
+</CodeGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Managing Categories" icon="folder" href="/admin/managing-categories">
+    Create and organize tour categories
+  </Card>
+  
+  <Card title="Managing Bookings" icon="calendar" href="/admin/managing-bookings">
+    Handle customer tour bookings
+  </Card>
+  
+  <Card title="Publishing Workflow" icon="rocket" href="/admin/publishing-workflow">
+    Learn about publishing and unpublishing content
+  </Card>
+  
+  <Card title="User Roles" icon="shield" href="/admin/user-roles">
+    Understand permissions for tour management
+  </Card>
+</CardGroup>

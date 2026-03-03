@@ -1,0 +1,735 @@
+---
+title: 'Managing Categories'
+description: 'Complete guide to creating, editing, and deleting tour categories and subcategories'
+---
+
+## Overview
+
+The Category Management system allows you to organize tours into hierarchical categories and subcategories. Categories help users browse and filter tours by type, destination, or activity. All category operations are handled by the `CategoryController`.
+
+**Controller:** `App\Http\Controllers\CategoryController`  
+**Model:** `App\Models\Category`  
+**Table:** `categories`  
+**Route Prefix:** `/category`
+
+<Note>
+  All category management operations require `['auth', 'verified']` middleware - you must be logged in and have a verified email.
+</Note>
+
+## Category Routes
+
+| Action | Route | Name | Method | Middleware |
+|--------|-------|------|--------|------------|
+| List all categories | `/categories` | `categories` | GET | None |
+| Create category form | `/category/create` | `category.create` | GET | `['auth', 'verified']` |
+| Store new category | `/category/new` | `category.store` | POST | `['auth', 'verified']` |
+| Edit category form | `/category/edit/{id}` | `category.edit` | GET | `['auth', 'verified']` |
+| Update category | `/category/update/{id}` | `category.update` | POST | `['auth', 'verified']` |
+| Delete category | `/category/delete/{id}` | `category.delete` | DELETE | `['auth', 'verified']` |
+
+## Category Model
+
+The Category model uses a simple table structure:
+
+```php
+protected $table = "categories";
+```
+
+<Note>
+  The model does not define fillable attributes, which means all fields are mass-assignable. This is a security concern.
+</Note>
+
+### Database Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | integer | Auto | Unique category identifier |
+| `category_name` | string | Yes | Main category name |
+| `sub_category` | string | No | First subcategory |
+| `sub_category1` | string | No | Second subcategory |
+| `sub_category2` | string | No | Third subcategory |
+| `created_at` | datetime | Auto | Creation timestamp |
+| `updated_at` | datetime | Auto | Last update timestamp |
+
+**Category Structure:**
+- **category_name** - Main category (e.g., "Wildlife Safari", "Beach Holiday")
+- **sub_category** - Primary subcategory (e.g., "Big Five Safari")
+- **sub_category1** - Secondary subcategory (e.g., "Luxury Safari")
+- **sub_category2** - Tertiary subcategory (e.g., "Photography Safari")
+
+## Viewing Categories
+
+### List All Categories
+
+**Route:** `/categories`  
+**Method:** GET  
+**Controller Method:** `index()`  
+*Source: CategoryController.php:15-19*
+
+```php
+public function index()
+{    
+    $categories = Category::latest()->paginate(10);
+    return view('categories.index', compact('categories'))
+        ->with('i', (request()->input('page', 1) - 1) * 5);
+}
+```
+
+**Features:**
+- Shows 10 categories per page
+- Sorted by newest first
+- Paginated results
+- No authentication required (public listing)
+
+## Creating a Category
+
+<Steps>
+  <Step title="Navigate to Create Form">
+    Access the category creation form at `/category/create`
+    
+    **Route Name:** `category.create`  
+    **Middleware:** `['auth', 'verified']`
+  </Step>
+  
+  <Step title="Enter Category Name">
+    Provide a descriptive main category name:
+    - Wildlife Safari
+    - Beach Holiday
+    - Cultural Tour
+    - Adventure Activity
+    - Mountain Trekking
+  </Step>
+  
+  <Step title="Add Subcategories (Optional)">
+    Add up to 3 subcategories to further organize tours:
+    - sub_category: Big Five Safari
+    - sub_category1: Luxury Safari
+    - sub_category2: Photography Safari
+  </Step>
+  
+  <Step title="Submit the Form">
+    Submit to `/category/new` via POST
+  </Step>
+</Steps>
+
+### Create Form
+
+**Route:** `/category/create`  
+**Method:** GET  
+**Controller Method:** `create()`  
+*Source: CategoryController.php:26-29*
+
+```php
+public function create()
+{
+    return view('categories.create');
+}
+```
+
+### Store New Category
+
+**Route:** `/category/new`  
+**Method:** POST  
+**Controller Method:** `store(Request $request)`  
+*Source: CategoryController.php:37-53*
+
+#### Validation Rules
+
+```php
+$request->validate([
+    'category_name' => 'required'
+]);
+```
+
+**Required Fields:**
+- `category_name` - Main category name (required)
+
+**Optional Fields:**
+- `sub_category` - First subcategory
+- `sub_category1` - Second subcategory
+- `sub_category2` - Third subcategory
+
+#### Storage Logic
+
+```php
+$category = new Category;
+
+$category->category_name = $request->category_name;
+$category->sub_category = $request->sub_category;
+$category->sub_category1 = $request->sub_category1;
+$category->sub_category2 = $request->sub_category2;
+
+$category->save();
+```
+*Source: CategoryController.php:43-50*
+
+<Note>
+  Subcategories are stored even if empty/null. The database should allow NULL values for these fields.
+</Note>
+
+#### Success Response
+
+After successful creation:
+
+```php
+return redirect()->route('categories')
+    ->with('success', 'Category Saved!');
+```
+
+## Editing a Category
+
+<Steps>
+  <Step title="Navigate to Edit Form">
+    Click edit on a category or navigate to `/category/edit/{id}`
+    
+    **Route Name:** `category.edit`  
+    **Middleware:** `['auth', 'verified']`
+  </Step>
+  
+  <Step title="Modify Category Details">
+    Update the category name or any subcategories
+  </Step>
+  
+  <Step title="Submit Changes">
+    Submit to `/category/update/{id}` via POST
+  </Step>
+</Steps>
+
+### Edit Form
+
+**Route:** `/category/edit/{id}`  
+**Method:** GET  
+**Controller Method:** `edit($id)`  
+*Source: CategoryController.php:72-78*
+
+```php
+public function edit($id)
+{
+    $category = Category::find($id);
+    return view('categories.edit', compact('category'));
+}
+```
+
+### Update Category
+
+**Route:** `/category/update/{id}`  
+**Method:** POST  
+**Controller Method:** `update(Request $request, $id)`  
+*Source: CategoryController.php:87-101*
+
+#### Validation Rules
+
+```php
+$request->validate([
+    'category_name' => 'required'
+]);
+```
+
+Same as creation - only category name is required.
+
+#### Update Logic
+
+```php
+$category = new Category;
+$category = Category::find($id);
+
+$category->category_name = $request->category_name;
+$category->sub_category = $request->sub_category;
+$category->sub_category1 = $request->sub_category1;
+$category->sub_category2 = $request->sub_category2;
+
+$category->update();
+```
+*Source: CategoryController.php:93-99*
+
+<Warning>
+  The code creates a new `Category` object then immediately overwrites it with `find($id)`. The first line is unnecessary.
+</Warning>
+
+#### Success Response
+
+```php
+return redirect()->route('categories')
+    ->with('success', 'Category Updated!');
+```
+
+## Deleting a Category
+
+**Route:** `/category/delete/{id}`  
+**Method:** DELETE  
+**Controller Method:** `destroy($id)`  
+*Source: CategoryController.php:109-116*
+
+```php
+public function destroy($id)
+{
+    $category = Category::find($id);
+    $category->delete();
+    
+    return redirect()->route('categories')
+        ->with('success', 'Deleted Successfully');
+}
+```
+
+<Warning>
+  **Deletion is permanent!** There is no soft delete implemented. Deleting a category may affect associated tours.
+</Warning>
+
+<Steps>
+  <Step title="Check for Associated Tours">
+    Before deleting, verify no tours are using this category
+  </Step>
+  
+  <Step title="Locate the Category">
+    Find the category you want to delete in the categories list at `/categories`
+  </Step>
+  
+  <Step title="Confirm Deletion">
+    Click the delete button (should show confirmation dialog)
+  </Step>
+  
+  <Step title="Category Removed">
+    The category is permanently deleted from the database
+  </Step>
+</Steps>
+
+<Note>
+  Deleting a category does **not** delete associated tours. Tours will still reference the deleted category name, which may cause issues.
+</Note>
+
+## Category Structure Examples
+
+### Simple Category
+
+```php
+[
+    'category_name' => 'Wildlife Safari',
+    'sub_category' => null,
+    'sub_category1' => null,
+    'sub_category2' => null
+]
+```
+
+Use case: Broad category with no subcategories
+
+### Category with One Subcategory
+
+```php
+[
+    'category_name' => 'Wildlife Safari',
+    'sub_category' => 'Big Five Safari',
+    'sub_category1' => null,
+    'sub_category2' => null
+]
+```
+
+Use case: Main category with one specific type
+
+### Fully Hierarchical Category
+
+```php
+[
+    'category_name' => 'Wildlife Safari',
+    'sub_category' => 'Big Five Safari',
+    'sub_category1' => 'Luxury Safari',
+    'sub_category2' => 'Photography Safari'
+]
+```
+
+Use case: Detailed categorization with multiple subcategory levels
+
+## Category Usage in Tours
+
+Categories are used when creating and filtering tours:
+
+### Creating a Tour
+
+When creating a tour, categories are loaded:
+
+```php
+// ToursController@create
+$categories = Category::all();
+return view('tours.create', ['categories' => $categories]);
+```
+*Source: ToursController.php:49-54*
+
+### Tour Category Fields
+
+Tours reference categories:
+
+```php
+// Tours model fields
+$tour->category = 'Wildlife Safari';      // Main category
+$tour->sub_category = 'Big Five Safari';  // Subcategory
+```
+
+### Filtering Tours by Category
+
+Public routes for browsing tours by category:
+
+```php
+// Main category filter
+Route::get('/tours/{category}', [HomeController::class, 'tours'])
+    ->name('tour');
+
+// Subcategory filter  
+Route::get('/tours/categories/{sub_category}', [HomeController::class, 'tour_cat'])
+    ->name('tour_cat');
+```
+*Source: web.php:102-103*
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Naming Conventions" icon="font">
+    - Use clear, descriptive names
+    - Be consistent with capitalization (Title Case recommended)
+    - Avoid abbreviations unless widely understood
+    - Keep names concise (2-4 words)
+    - Use singular or plural consistently
+    
+    **Good examples:**
+    - Wildlife Safari
+    - Beach Holiday
+    - Cultural Experience
+    - Mountain Trekking
+    
+    **Avoid:**
+    - WL Safari (unclear abbreviation)
+    - beach holidays and relaxation packages (too long)
+    - WILDLIFE (all caps)
+  </Accordion>
+  
+  <Accordion title="Hierarchy Planning" icon="sitemap">
+    - Plan your category structure before creating
+    - Keep hierarchy shallow (2-3 levels max)
+    - Ensure subcategories logically belong to parent
+    - Don't duplicate information across levels
+    - Consider how users will navigate
+    
+    **Example structure:**
+    ```
+    Wildlife Safari (main)
+      └─ Big Five Safari (sub_category)
+      └─ Bird Watching (sub_category1)
+      └─ Night Safari (sub_category2)
+    ```
+  </Accordion>
+  
+  <Accordion title="Category Management" icon="tasks">
+    - Create all major categories before adding tours
+    - Review and consolidate duplicate categories
+    - Don't delete categories with associated tours
+    - Update tour associations before deleting categories
+    - Keep the category list manageable (10-20 main categories)
+  </Accordion>
+  
+  <Accordion title="Subcategory Usage" icon="layer-group">
+    - Use subcategories for meaningful distinctions
+    - Don't create subcategories for minor variations
+    - Consider if subcategory needs its own category
+    - Leave subcategories empty if not needed
+    - Use all three subcategory fields only when necessary
+  </Accordion>
+</AccordionGroup>
+
+## Common Category Structures
+
+<Tabs>
+  <Tab title="By Activity Type">
+    ```
+    Wildlife Safari
+      └─ Big Five Safari
+      └─ Bird Watching Safari
+      └─ Photography Safari
+    
+    Beach Holiday
+      └─ Island Getaway
+      └─ Coastal Resort
+      └─ Water Sports
+    
+    Cultural Tour
+      └─ Village Visit
+      └─ Historical Sites
+      └─ Traditional Ceremonies
+    
+    Adventure Activity
+      └─ Mountain Climbing
+      └─ White Water Rafting
+      └─ Zip Lining
+    ```
+  </Tab>
+  
+  <Tab title="By Destination">
+    ```
+    Serengeti
+      └─ Northern Serengeti
+      └─ Central Serengeti
+      └─ Southern Serengeti
+    
+    Zanzibar
+      └─ Stone Town
+      └─ North Coast
+      └─ South Coast
+    
+    Kilimanjaro
+      └─ Marangu Route
+      └─ Machame Route
+      └─ Lemosho Route
+    ```
+  </Tab>
+  
+  <Tab title="By Experience Level">
+    ```
+    Budget Safari
+      └─ Camping Safari
+      └─ Basic Lodge Safari
+    
+    Mid-Range Safari
+      └─ Comfort Lodge Safari
+      └─ Tented Camp Safari
+    
+    Luxury Safari
+      └─ 5-Star Lodge Safari
+      └─ Private Safari
+      └─ Exclusive Camp Safari
+    ```
+  </Tab>
+  
+  <Tab title="By Duration">
+    ```
+    Day Trips
+      └─ Half Day Tour
+      └─ Full Day Tour
+    
+    Short Breaks
+      └─ Weekend Safari
+      └─ 3-Day Tour
+    
+    Extended Tours
+      └─ Week-Long Safari
+      └─ 10+ Days Safari
+    ```
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Duplicate Categories" icon="clone">
+    **Problem:** Multiple categories with similar names
+    
+    **Examples:**
+    - "Wildlife Safari" and "Wildlife Safaris"
+    - "Beach Holiday" and "Beach Holidays"
+    
+    **Solution:**
+    1. Decide on a consistent naming convention
+    2. Update all tours using the duplicate category
+    3. Delete the duplicate category
+    4. Standardize future entries
+  </Accordion>
+  
+  <Accordion title="Cannot Delete Category" icon="lock">
+    **Problem:** Tours still reference the category
+    
+    **Solution:**
+    1. Find all tours using this category:
+       ```php
+       $tours = Tours::where('category', 'Old Category')->get();
+       ```
+    2. Update each tour to use a different category
+    3. Then delete the unused category
+    
+    **Better approach:** Implement foreign key constraints with `onDelete('restrict')`
+  </Accordion>
+  
+  <Accordion title="Tours Not Filtering Correctly" icon="filter">
+    **Problem:** Tours don't appear when filtering by category
+    
+    **Possible causes:**
+    - Category name doesn't match exactly (case-sensitive)
+    - Tours use old category name
+    - Tours have typos in category field
+    
+    **Solution:**
+    - Ensure exact name match between categories and tours
+    - Update tours to use correct category names
+    - Consider using category IDs instead of names (requires refactoring)
+  </Accordion>
+  
+  <Accordion title="Missing Categories in Tour Form" icon="exclamation-triangle">
+    **Problem:** Category dropdown is empty when creating tours
+    
+    **Causes:**
+    - No categories created yet
+    - Categories query failing
+    - View not rendering correctly
+    
+    **Solution:**
+    - Create at least one category first
+    - Check controller passes `$categories` to view
+    - Verify view template renders dropdown correctly
+  </Accordion>
+</AccordionGroup>
+
+## Security Considerations
+
+<Warning>
+  **Security Issues:**
+  
+  1. **No fillable array defined** - All fields are mass-assignable
+  2. **No authorization checks** - Any verified user can manage categories
+  3. **No validation on subcategories** - Can store arbitrary data
+  4. **No foreign key constraints** - Tours can reference non-existent categories
+</Warning>
+
+### Recommended Improvements
+
+<Steps>
+  <Step title="Add Fillable Array">
+    Define which fields can be mass-assigned:
+    
+    ```php
+    // In Category model
+    protected $fillable = [
+        'category_name',
+        'sub_category',
+        'sub_category1',
+        'sub_category2'
+    ];
+    ```
+  </Step>
+  
+  <Step title="Implement Authorization">
+    Check if user can manage categories:
+    
+    ```php
+    // Create a policy
+    php artisan make:policy CategoryPolicy
+    
+    // In controller
+    $this->authorize('manage', Category::class);
+    ```
+  </Step>
+  
+  <Step title="Add Unique Validation">
+    Prevent duplicate category names:
+    
+    ```php
+    $request->validate([
+        'category_name' => 'required|unique:categories,category_name',
+    ]);
+    ```
+  </Step>
+  
+  <Step title="Use Foreign Keys in Tours">
+    Reference category by ID instead of name:
+    
+    ```php
+    // Migration
+    $table->foreignId('category_id')
+          ->constrained()
+          ->onDelete('restrict');
+    ```
+  </Step>
+</Steps>
+
+## Code Issues
+
+<AccordionGroup>
+  <Accordion title="Unnecessary Object Creation" icon="code">
+    **Issue:** Creating new Category object then immediately overwriting
+    
+    ```php
+    // Current (inefficient)
+    $category = new Category;
+    $category = Category::find($id);
+    
+    // Should be
+    $category = Category::find($id);
+    ```
+    
+    **Location:** CategoryController.php:93-94
+  </Accordion>
+  
+  <Accordion title="No Fillable Guard" icon="shield">
+    **Issue:** Model doesn't define fillable attributes
+    
+    **Risk:** Mass assignment vulnerabilities
+    
+    **Fix:** Add fillable array to model
+  </Accordion>
+  
+  <Accordion title="No Cascade Handling" icon="link">
+    **Issue:** Deleting category doesn't check for associated tours
+    
+    **Risk:** Tours reference non-existent categories
+    
+    **Fix:** Add foreign key constraints or check before delete
+  </Accordion>
+</AccordionGroup>
+
+## Example: Complete Category Setup
+
+<CodeGroup>
+```php Create Wildlife Safari Category
+[
+    'category_name' => 'Wildlife Safari',
+    'sub_category' => 'Big Five Safari',
+    'sub_category1' => 'Luxury Safari',
+    'sub_category2' => 'Photography Safari'
+]
+```
+
+```php Create Beach Holiday Category
+[
+    'category_name' => 'Beach Holiday',
+    'sub_category' => 'Island Getaway',
+    'sub_category1' => 'Water Sports',
+    'sub_category2' => null
+]
+```
+
+```php Create Cultural Tour Category
+[
+    'category_name' => 'Cultural Tour',
+    'sub_category' => 'Village Visit',
+    'sub_category1' => null,
+    'sub_category2' => null
+]
+```
+
+```php Using Categories in Tour
+// When creating a tour
+$tour->category = 'Wildlife Safari';
+$tour->sub_category = 'Big Five Safari';
+
+// Categories are displayed in dropdown
+@foreach($categories as $category)
+    <option value="{{ $category->category_name }}">
+        {{ $category->category_name }}
+    </option>
+@endforeach
+```
+</CodeGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Managing Tours" icon="map" href="/admin/managing-tours">
+    Use categories when creating tours
+  </Card>
+  
+  <Card title="Publishing Workflow" icon="rocket" href="/admin/publishing-workflow">
+    Learn about content organization
+  </Card>
+  
+  <Card title="User Roles" icon="shield" href="/admin/user-roles">
+    Understand permissions for category management
+  </Card>
+  
+  <Card title="Overview" icon="home" href="/admin/overview">
+    Return to admin dashboard overview
+  </Card>
+</CardGroup>

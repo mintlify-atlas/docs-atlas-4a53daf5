@@ -1,0 +1,609 @@
+---
+title: 'Managing Video Content'
+description: 'Complete guide to adding, editing, and deleting video content in Safaris Web'
+---
+
+## Overview
+
+The Video Management system allows you to add and manage video content from external URLs (primarily YouTube). All video operations are handled by the `VideoController`.
+
+**Controller:** `App\Http\Controllers\VideoController`  
+**Model:** `App\Models\Video`  
+**Table:** `videos`  
+**Route Prefix:** `/videos`
+
+<Note>
+  All video management operations require `['auth', 'verified']` middleware - you must be logged in and have a verified email.
+</Note>
+
+## Video Routes
+
+| Action | Route | Name | Method | Middleware |
+|--------|-------|------|--------|------------|
+| List all videos | `/videos` | `videos` | GET | None |
+| Create video form | `/videos/create` | `videos.create` | GET | `['auth', 'verified']` |
+| Store new video | `/videos/store` | `videos.store` | POST | `['auth', 'verified']` |
+| Edit video form | `/videos/edit/{id}` | `videos.edit` | GET | `['auth', 'verified']` |
+| Update video | `/videos/update/{id}` | `videos.update` | POST | `['auth', 'verified']` |
+| Delete video | `/videos/delete/{id}` | `videos.delete` | DELETE | `['auth', 'verified']` |
+
+<Note>
+  The edit and update routes exist in the route file but the controller methods are empty (not implemented).
+</Note>
+
+## Video Model
+
+The Video model defines the fillable attributes:
+
+```php
+protected $fillable = [
+    'url'
+];
+```
+
+### Database Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | integer | Auto | Unique video identifier |
+| `url` | string | Yes | Video ID or URL |
+| `name` | string | Yes | Video title/name |
+| `created_at` | datetime | Auto | Creation timestamp |
+| `updated_at` | datetime | Auto | Last update timestamp |
+
+<Warning>
+  The model only defines `url` as fillable, but the controller also sets `name`. This works but is inconsistent with the fillable array.
+</Warning>
+
+## Viewing Videos
+
+### List All Videos
+
+**Route:** `/videos`  
+**Method:** GET  
+**Controller Method:** `index()`  
+*Source: VideoController.php:16-27*
+
+```php
+public function index()
+{
+    $videos = Video::latest()->paginate(6);
+    $blogs = Blog::all();
+    
+    return view('videos.index', [
+        'videos' => $videos,
+        'blogs' => $blogs,
+    ]);
+}
+```
+
+**Features:**
+- Public-facing videos page
+- Shows 6 videos per page
+- Sorted by newest first
+- Includes blog posts in sidebar
+- No authentication required
+
+## Creating a Video Entry
+
+<Steps>
+  <Step title="Get Video URL">
+    Copy the full URL of the video you want to add (e.g., from YouTube)
+    
+    **Example:** `https://www.youtube.com/watch?v=dQw4w9WgXcQ`
+  </Step>
+  
+  <Step title="Navigate to Create Form">
+    Access the video creation form at `/videos/create`
+    
+    **Route Name:** `videos.create`  
+    **Middleware:** `['auth', 'verified']`
+  </Step>
+  
+  <Step title="Fill Required Fields">
+    Complete the form fields:
+    - **URL**: Paste the full video URL
+    - **Name**: Enter a descriptive title for the video
+  </Step>
+  
+  <Step title="Submit the Form">
+    Submit to `/videos/store` via POST
+  </Step>
+</Steps>
+
+### Create Form
+
+**Route:** `/videos/create`  
+**Method:** GET  
+**Controller Method:** `create()`  
+*Source: VideoController.php:35-39*
+
+```php
+public function create()
+{
+    return view('videos.create');
+}
+```
+
+Simple form with no additional data needed.
+
+### Store New Video
+
+**Route:** `/videos/store`  
+**Method:** POST  
+**Controller Method:** `store(Request $request)`  
+*Source: VideoController.php:47-67*
+
+#### Validation Rules
+
+```php
+$request->validate([
+    'url' => 'required',
+    'name' => 'required'
+]);
+```
+
+**Required Fields:**
+- `url` - Video URL (full URL including domain)
+- `name` - Video title/description
+
+#### URL Processing
+
+The controller extracts the video ID from the URL:
+
+```php
+$video = new Video;
+
+$split_url = explode("/", $request->url);
+$video->url = end($split_url);
+$video->name = $request->name;
+
+$video->save();
+```
+*Source: VideoController.php:55-62*
+
+**How it works:**
+1. Takes the full URL: `https://www.youtube.com/watch?v=dQw4w9WgXcQ`
+2. Splits by `/` delimiter
+3. Takes the last segment: `watch?v=dQw4w9WgXcQ`
+4. Stores only the last part in the database
+
+<Note>
+  This URL processing assumes the video ID is in the last segment of the URL path. This works for some YouTube URLs but may not work for all formats (e.g., `youtu.be` short URLs).
+</Note>
+
+#### Success Response
+
+After successful creation:
+
+```php
+return redirect()->route('videos')
+    ->with('success', 'Video Added Succsfully!');
+```
+
+## Editing a Video
+
+**Route:** `/videos/edit/{id}`  
+**Method:** GET  
+**Controller Method:** `edit(Video $video)`  
+*Source: VideoController.php:86-89*
+
+```php
+public function edit(Video $video)
+{
+    // Empty method - not implemented
+}
+```
+
+<Warning>
+  The edit method exists but is **not implemented**. You cannot currently edit videos through the admin interface.
+</Warning>
+
+## Updating a Video
+
+**Route:** `/videos/update/{id}`  
+**Method:** POST  
+**Controller Method:** `update(Request $request, Video $video)`  
+*Source: VideoController.php:98-101*
+
+```php
+public function update(Request $request, Video $video)
+{
+    // Empty method - not implemented
+}
+```
+
+<Warning>
+  The update method exists but is **not implemented**. Videos cannot be updated after creation - you must delete and recreate them.
+</Warning>
+
+## Deleting a Video
+
+**Route:** `/videos/delete/{id}`  
+**Method:** DELETE  
+**Controller Method:** `destroy($id)`  
+*Source: VideoController.php:109-116*
+
+```php
+public function destroy(Video $video, $id)
+{
+    $video = Video::find($id);
+    $video->delete();
+    
+    return redirect()->route('videos')
+        ->with('success', 'Deleted!');
+}
+```
+
+<Warning>
+  **Deletion is permanent!** There is no soft delete implemented. Once a video is deleted, it cannot be recovered.
+</Warning>
+
+<Steps>
+  <Step title="Locate the Video">
+    Find the video you want to delete in the videos list at `/videos`
+  </Step>
+  
+  <Step title="Confirm Deletion">
+    Click the delete button (should show confirmation dialog)
+  </Step>
+  
+  <Step title="Video Removed">
+    The video entry is permanently deleted from the database and you're redirected to the videos list
+  </Step>
+</Steps>
+
+## Supported Video Platforms
+
+The system is designed to work with video URLs, particularly YouTube:
+
+### YouTube Videos
+
+**Standard URL Format:**
+```
+https://www.youtube.com/watch?v=VIDEO_ID
+```
+
+**Example:**
+```
+https://www.youtube.com/watch?v=dQw4w9WgXcQ
+```
+
+Stored as: `watch?v=dQw4w9WgXcQ`
+
+**Short URL Format:**
+```
+https://youtu.be/VIDEO_ID
+```
+
+**Example:**
+```
+https://youtu.be/dQw4w9WgXcQ
+```
+
+Stored as: `dQw4w9WgXcQ`
+
+<Note>
+  The URL processing logic may not work correctly for all URL formats. Test thoroughly when adding videos.
+</Note>
+
+### Other Platforms
+
+The system can technically store URLs from other platforms, but:
+
+- Vimeo: May work depending on URL structure
+- Dailymotion: May work depending on URL structure
+- Self-hosted: Requires full URL, may not display correctly
+
+<Warning>
+  The frontend view template determines how videos are embedded. Check your view files to see which platforms are supported.
+</Warning>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Video Selection" icon="video">
+    - Choose high-quality, relevant videos
+    - Ensure videos are publicly accessible
+    - Use videos that showcase your tours and destinations
+    - Verify video embed settings allow external embedding
+    - Test video playback before adding
+  </Accordion>
+  
+  <Accordion title="Video Titles" icon="heading">
+    - Use descriptive, engaging titles
+    - Include location or tour names
+    - Keep titles concise (under 60 characters)
+    - Use consistent naming conventions
+    - Make titles searchable and SEO-friendly
+  </Accordion>
+  
+  <Accordion title="URL Management" icon="link">
+    - Always copy the full URL from the browser
+    - Use YouTube share URLs for simplicity
+    - Test the URL in a browser before adding
+    - Avoid playlist or channel URLs
+    - Use direct video links only
+  </Accordion>
+  
+  <Accordion title="Content Organization" icon="list">
+    - Add videos in logical order
+    - Group similar content together
+    - Remove outdated or irrelevant videos
+    - Keep video library fresh and updated
+    - Limit total number to most impactful content
+  </Accordion>
+</AccordionGroup>
+
+## URL Format Examples
+
+<CodeGroup>
+```text YouTube Standard
+# Full YouTube URL
+https://www.youtube.com/watch?v=dQw4w9WgXcQ
+
+# What gets stored
+watch?v=dQw4w9WgXcQ
+
+# This format works but includes unnecessary query string
+```
+
+```text YouTube Short
+# YouTube short URL
+https://youtu.be/dQw4w9WgXcQ
+
+# What gets stored
+dQw4w9WgXcQ
+
+# This is the cleanest format for YouTube videos
+```
+
+```text YouTube Embed
+# Embed URL
+https://www.youtube.com/embed/dQw4w9WgXcQ
+
+# What gets stored
+dQw4w9WgXcQ
+
+# This format is ideal as it stores just the ID
+```
+
+```text Vimeo
+# Vimeo URL
+https://vimeo.com/123456789
+
+# What gets stored
+123456789
+
+# May work depending on view implementation
+```
+</CodeGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Video Not Displaying" icon="exclamation-triangle">
+    **Possible causes:**
+    - URL format not recognized
+    - Video is private or restricted
+    - Embed permissions disabled
+    - Incorrect URL stored in database
+    
+    **Solutions:**
+    - Verify the video is publicly accessible
+    - Check video embed settings on YouTube
+    - Ensure URL is in correct format
+    - Test URL in browser before adding
+    - Check frontend view template for embed code
+  </Accordion>
+  
+  <Accordion title="Cannot Edit Video" icon="lock">
+    **Issue:** Edit functionality not implemented
+    
+    **Workaround:**
+    1. Delete the existing video
+    2. Add a new video with correct information
+    
+    **Long-term solution:** Implement edit and update methods
+  </Accordion>
+  
+  <Accordion title="URL Processing Issues" icon="link">
+    **Problem:** Stored URL doesn't work in embed
+    
+    **Cause:** The `explode()` logic may not extract correct ID for all URL formats
+    
+    **Solution:**
+    - Use YouTube short URLs (`youtu.be/VIDEO_ID`)
+    - Or use embed URLs (`youtube.com/embed/VIDEO_ID`)
+    - Both formats store clean video IDs
+    
+    **Better implementation:**
+    ```php
+    // Extract YouTube ID properly
+    parse_str(parse_url($url, PHP_URL_QUERY), $params);
+    $video_id = $params['v'] ?? end(explode('/', $url));
+    ```
+  </Accordion>
+  
+  <Accordion title="Cannot Add or Delete Video" icon="shield">
+    **Requirements:**
+    - Must be logged in (`auth` middleware)
+    - Email must be verified (`verified` middleware)
+    
+    **Solution:**
+    - Log in to your account
+    - Verify your email if you haven't already
+    - Check that your account has proper permissions
+  </Accordion>
+</AccordionGroup>
+
+## Implementation Gaps
+
+The video management system has several incomplete features:
+
+<Warning>
+  **Missing Functionality:**
+  
+  1. **Edit Method Empty** - Videos cannot be edited after creation
+  2. **Update Method Empty** - Video information cannot be updated
+  3. **No Publish/Unpublish** - All videos are always public
+  4. **No View Method** - No single video detail page
+  5. **URL Processing Limited** - May not work for all video platforms
+</Warning>
+
+### Recommended Improvements
+
+<Steps>
+  <Step title="Implement Edit and Update">
+    Add functionality to edit video name and URL:
+    
+    ```php
+    public function edit(Video $video, $id)
+    {
+        $video = Video::find($id);
+        return view('videos.edit', compact('video'));
+    }
+    
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'url' => 'required',
+            'name' => 'required'
+        ]);
+        
+        $video = Video::find($id);
+        $split_url = explode("/", $request->url);
+        $video->url = end($split_url);
+        $video->name = $request->name;
+        $video->update();
+        
+        return redirect()->route('videos')
+            ->with('success', 'Video updated successfully!');
+    }
+    ```
+  </Step>
+  
+  <Step title="Improve URL Processing">
+    Use better URL parsing for YouTube:
+    
+    ```php
+    // Better YouTube ID extraction
+    if (strpos($request->url, 'youtube.com') !== false) {
+        parse_str(parse_url($request->url, PHP_URL_QUERY), $params);
+        $video_id = $params['v'] ?? '';
+    } elseif (strpos($request->url, 'youtu.be') !== false) {
+        $video_id = basename(parse_url($request->url, PHP_URL_PATH));
+    } else {
+        $video_id = end(explode('/', $request->url));
+    }
+    
+    $video->url = $video_id;
+    ```
+  </Step>
+  
+  <Step title="Add Published Field">
+    Add publication status to control visibility:
+    
+    ```php
+    // Migration
+    $table->boolean('published')->default(1);
+    
+    // Controller
+    public function publish($id)
+    {
+        $video = Video::find($id);
+        $video->published = !$video->published;
+        $video->update();
+        return redirect()->route('videos');
+    }
+    ```
+  </Step>
+  
+  <Step title="Add Video Categories">
+    Organize videos by type or destination:
+    
+    ```php
+    // Migration
+    $table->string('category')->nullable();
+    
+    // Allow filtering by category
+    $videos = Video::where('category', $category)->get();
+    ```
+  </Step>
+</Steps>
+
+## Example: Adding a YouTube Video
+
+<CodeGroup>
+```php Request Payload
+[
+    'url' => 'https://youtu.be/dQw4w9WgXcQ',
+    'name' => 'Serengeti Wildlife Safari - 4K Aerial Tour'
+]
+```
+
+```php Controller Processing
+// VideoController@store
+$video = new Video;
+
+// Split URL and extract ID
+$split_url = explode("/", $request->url);
+// Result: ['https:', '', 'youtu.be', 'dQw4w9WgXcQ']
+
+$video->url = end($split_url);
+// Stores: 'dQw4w9WgXcQ'
+
+$video->name = $request->name;
+// Stores: 'Serengeti Wildlife Safari - 4K Aerial Tour'
+
+$video->save();
+```
+
+```php Stored in Database
+[
+    'id' => 1,
+    'url' => 'dQw4w9WgXcQ',
+    'name' => 'Serengeti Wildlife Safari - 4K Aerial Tour',
+    'created_at' => '2026-03-03 12:00:00',
+    'updated_at' => '2026-03-03 12:00:00'
+]
+```
+</CodeGroup>
+
+## Frontend Integration
+
+Videos are displayed on the public videos page:
+
+```php
+$videos = Video::latest()->paginate(6);
+```
+
+**Display characteristics:**
+- 6 videos per page
+- Sorted by newest first
+- Paginated navigation
+- Embedded using stored URL/ID
+
+<Note>
+  The actual video embed code depends on your view template. Check `resources/views/videos/index.blade.php` to see how videos are rendered.
+</Note>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Managing Blogs" icon="newspaper" href="/admin/managing-blogs">
+    Add blog posts alongside video content
+  </Card>
+  
+  <Card title="Managing Tours" icon="map" href="/admin/managing-tours">
+    Link videos to specific tour packages
+  </Card>
+  
+  <Card title="Publishing Workflow" icon="rocket" href="/admin/publishing-workflow">
+    Learn about content publishing strategies
+  </Card>
+  
+  <Card title="User Roles" icon="shield" href="/admin/user-roles">
+    Understand permissions for video management
+  </Card>
+</CardGroup>

@@ -1,0 +1,357 @@
+---
+title: Project Structure
+description: Directory structure, MVC architecture, and Laravel conventions in Safaris Web
+---
+
+## Overview
+
+Safaris Web follows Laravel 9's standard directory structure and MVC (Model-View-Controller) architectural pattern. This guide explains the organization and purpose of each directory.
+
+## Root Directory Structure
+
+```
+~/workspace/source/
+├── app/                    # Application core (Models, Controllers, Middleware)
+├── bootstrap/              # Framework bootstrap files
+├── config/                 # Configuration files
+├── database/               # Migrations, seeders, factories
+├── lang/                   # Language files
+├── public/                 # Public assets (entry point)
+├── resources/              # Views, raw assets, lang files
+├── routes/                 # Route definitions
+├── storage/                # Logs, cache, compiled views, uploads
+├── tests/                  # Test files
+├── vendor/                 # Composer dependencies
+├── .env                    # Environment configuration
+├── artisan                 # CLI tool
+├── composer.json           # PHP dependencies
+├── package.json            # JavaScript dependencies
+└── webpack.mix.js          # Asset compilation
+```
+
+## App Directory (`app/`)
+
+The heart of your application containing business logic.
+
+### Structure
+
+```
+app/
+├── Console/                # Artisan commands
+├── Exceptions/             # Exception handling
+├── Http/
+│   ├── Controllers/        # Request handlers
+│   │   ├── Auth/          # Authentication controllers
+│   │   ├── AccomodationController.php
+│   │   ├── BlogController.php
+│   │   ├── BookingController.php
+│   │   ├── CategoryController.php
+│   │   ├── EnquiryController.php
+│   │   ├── EventController.php
+│   │   ├── HighlightController.php
+│   │   ├── HomeController.php
+│   │   ├── ProductController.php
+│   │   ├── ServiceController.php
+│   │   ├── ToursController.php
+│   │   ├── UserController.php
+│   │   └── VideoController.php
+│   ├── Middleware/         # HTTP middleware
+│   └── Kernel.php          # HTTP kernel
+├── Mail/                   # Email classes
+├── Models/                 # Eloquent models
+│   ├── Accomodation.php
+│   ├── Blog.php
+│   ├── Booking.php
+│   ├── Category.php
+│   ├── Enquiry.php
+│   ├── Event.php
+│   ├── Highlight.php
+│   ├── Product.php
+│   ├── Service.php
+│   ├── Tours.php
+│   ├── User.php
+│   └── Video.php
+└── Providers/              # Service providers
+```
+
+### Controllers Organization
+
+Safaris Web organizes controllers by feature:
+
+- **HomeController.php** (`~/workspace/source/app/Http/Controllers/HomeController.php`)
+  - Handles static pages (about, careers, FAQs)
+  - Homepage with featured tours
+  - Search functionality
+
+- **ToursController.php** 
+  - CRUD operations for tour packages
+  - Publishing/unpublishing tours
+  - Admin dashboard views
+
+- **BookingController.php**
+  - Customer booking management
+  - User profile/booking history
+  - Booking confirmation workflow
+
+- **Resource Controllers** (Products, Services, Events, Accommodations)
+  - Follow RESTful conventions
+  - Category filtering
+  - Slug-based URLs
+
+## Resources Directory (`resources/`)
+
+Contains views, raw assets, and language files.
+
+### Structure
+
+```
+resources/
+├── css/                    # SCSS/CSS source files
+├── js/                     # JavaScript source files
+└── views/                  # Blade templates
+    ├── accomodations/      # Accommodation views
+    ├── admin/              # Admin dashboard
+    ├── auth/               # Authentication pages
+    │   ├── login.blade.php
+    │   ├── register.blade.php
+    │   └── verify.blade.php
+    ├── blogs/              # Blog views
+    ├── bookings/           # Booking forms
+    ├── categories/         # Category management
+    ├── emails/             # Email templates
+    ├── enquiries/          # Enquiry forms
+    ├── events/             # Event views
+    ├── highlights/         # Homepage highlights
+    ├── layout/             # Master layouts
+    │   ├── index.blade.php    # Main public layout
+    │   ├── admin.blade.php    # Admin layout
+    │   ├── dash.blade.php     # Dashboard layout
+    │   └── new.blade.php      # Alternative layout
+    ├── products/           # Product catalog
+    ├── safaris/            # Safari tour listings
+    ├── services/           # Service offerings
+    ├── tour/               # Tour detail pages
+    ├── tours/              # Tour management (admin)
+    ├── users/              # User profile/settings
+    ├── videos/             # Video gallery
+    └── home.blade.php      # Homepage
+```
+
+### Layout System
+
+Safaris Web uses a master layout pattern (`~/workspace/source/resources/views/layout/index.blade.php:1`):
+
+```php
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <!-- Meta tags, CSS, fonts -->
+</head>
+<body>
+    <!-- Navigation bar -->
+    <nav class="navbar navbar-expand-lg">...</nav>
+    
+    <!-- Main content area -->
+    @yield('content')
+    
+    <!-- Footer -->
+    <div class="footer">...</div>
+</body>
+</html>
+```
+
+Child views extend this layout:
+
+```php
+@extends('layout.index')
+
+@section('content')
+    <!-- Page-specific content -->
+@endsection
+```
+
+## Database Directory (`database/`)
+
+```
+database/
+├── factories/              # Model factories for testing
+├── migrations/             # Database migrations (24 files)
+│   ├── 2014_10_12_000000_create_users_table.php
+│   ├── 2019_05_01_071637_create_tours_table.php
+│   ├── 2022_05_01_081632_create_tour_booking_table.php
+│   └── ... (21 more)
+└── seeders/                # Database seeders
+    └── DatabaseSeeder.php
+```
+
+## Routes Directory (`routes/`)
+
+```
+routes/
+├── web.php                 # Web routes (primary routes file)
+├── api.php                 # API routes
+├── console.php             # Artisan commands
+└── channels.php            # Broadcast channels
+```
+
+### Route Organization
+
+The `web.php` file (`~/workspace/source/routes/web.php:1`) organizes routes by feature:
+
+```php
+// Static pages
+Route::get('/', [HomeController::class, 'index']);
+Route::get('/about', [HomeController::class, 'about']);
+
+// Tours (with auth middleware)
+Route::get('/addtour', [ToursController::class, 'index'])
+    ->middleware(['auth', 'verified']);
+
+// Bookings (with auth + email verification)
+Route::get('/bookings', [BookingController::class, 'index'])
+    ->middleware(['auth', 'verified']);
+
+// Resource routes
+Route::resource('enquiries', EnquiryController::class);
+Route::resource('highlights', HighlightController::class);
+```
+
+## Public Directory (`public/`)
+
+The web server document root and application entry point.
+
+```
+public/
+├── index.php               # Application entry point
+├── storage/                # Symlink to storage/app/public
+├── css/                    # Compiled CSS
+├── js/                     # Compiled JavaScript
+├── images/                 # Public images
+├── bootstrap/              # Bootstrap assets
+├── OwlCarousel2-2.3.4/    # Carousel library
+├── favicon_io/             # Favicon files
+└── .htaccess               # Apache rewrite rules
+```
+
+## Storage Directory (`storage/`)
+
+```
+storage/
+├── app/
+│   ├── public/             # User uploads (symlinked to public/storage)
+│   │   └── images/        # Tour/blog images
+│   └── private/            # Private files
+├── framework/
+│   ├── cache/              # Framework cache
+│   ├── sessions/           # Session files
+│   └── views/              # Compiled Blade templates
+└── logs/                   # Application logs
+    └── laravel.log
+```
+
+## Config Directory (`config/`)
+
+Configuration files for all aspects of the application:
+
+```
+config/
+├── app.php                 # Application settings
+├── auth.php                # Authentication configuration
+├── database.php            # Database connections
+├── mail.php                # Email settings
+├── filesystems.php         # Storage configuration
+├── services.php            # Third-party services (reCAPTCHA)
+├── session.php             # Session configuration
+└── ... (more config files)
+```
+
+## MVC Architecture
+
+### Model-View-Controller Flow
+
+1. **Request** → Routes (`routes/web.php`)
+2. **Route** → Controller (`app/Http/Controllers/`)
+3. **Controller** → Model (`app/Models/`)
+4. **Model** ↔ Database
+5. **Controller** → View (`resources/views/`)
+6. **Response** ← Compiled HTML
+
+### Example: Tour Listing Flow
+
+```php
+// 1. Route (routes/web.php:67)
+Route::get('/safaris', [ToursController::class, 'safaris']);
+
+// 2. Controller (app/Http/Controllers/ToursController.php:21-27)
+public function safaris() {
+    $categories = Category::all();
+    $blogs = Blog::latest()->limit(2)->get();
+    $safaris = Tours::inRandomOrder()->paginate(20);
+    return view('safaris.index', compact('categories', 'blogs', 'safaris'));
+}
+
+// 3. Model (app/Models/Tours.php)
+class Tours extends Model {
+    protected $fillable = ['hotel', 'transport', 'image', ...];
+}
+
+// 4. View (resources/views/safaris/index.blade.php)
+@foreach($safaris as $safari)
+    <div class="tour-card">{{ $safari->hotel }}</div>
+@endforeach
+```
+
+## Laravel Conventions
+
+### Naming Conventions
+
+| Type | Convention | Example |
+|------|------------|----------|
+| Model | Singular, PascalCase | `Tour`, `Booking` |
+| Controller | PascalCase + "Controller" | `ToursController` |
+| Migration | snake_case + description | `create_tours_table` |
+| View | snake_case.blade.php | `create.blade.php` |
+| Route | kebab-case | `/tour-bookings` |
+| Table | Plural, snake_case | `tour_bookings` |
+
+### Controller Methods (RESTful)
+
+- `index()` - List resources
+- `create()` - Show creation form
+- `store()` - Save new resource
+- `show($id)` - Display specific resource
+- `edit($id)` - Show edit form
+- `update($id)` - Update resource
+- `destroy($id)` - Delete resource
+
+### Custom Methods
+
+Safaris Web adds custom methods:
+- `publish($id)` - Toggle published status
+- `confirm($id)` - Confirm booking
+- `safaris()` - Public listing page
+
+## Autoloading
+
+Composer PSR-4 autoloading configuration (`composer.json:25-30`):
+
+```json
+"autoload": {
+    "psr-4": {
+        "App\\": "app/",
+        "Database\\Factories\\": "database/factories/",
+        "Database\\Seeders\\": "database/seeders/"
+    }
+}
+```
+
+After adding new classes:
+```bash
+composer dump-autoload
+```
+
+## Next Steps
+
+- Learn about [Models & Relationships](/development/models-relationships)
+- Explore [Routes & Controllers](/development/routes-controllers)
+- Understand [Blade Templates](/development/blade-templates)

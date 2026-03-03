@@ -1,0 +1,303 @@
+---
+title: Browsing Tours & Safaris
+description: How to explore and discover safari packages on Safaris Web
+---
+
+## Overview
+
+Safaris Web offers multiple ways to browse and discover safari tours across Kenya. This guide covers all browsing methods, from the main safaris page to category-specific views and search functionality.
+
+## Main Safaris Page
+
+The primary tour browsing experience is at the `/safaris` route.
+
+### What You'll See
+
+<CardGroup cols={2}>
+  <Card title="Tour Listings" icon="list">
+    20 safaris per page, displayed in random order for variety
+  </Card>
+  <Card title="Tour Information" icon="info-circle">
+    Each listing shows hotel, location, pricing, transport, and meal details
+  </Card>
+  <Card title="Category Filters" icon="filter">
+    All available categories loaded from the database
+  </Card>
+  <Card title="Inspiration" icon="lightbulb">
+    Latest blog posts (2 most recent) displayed alongside tours
+  </Card>
+</CardGroup>
+
+**Route Details:**
+- Path: `/safaris`
+- Controller: `ToursController::safaris()`
+- Model: `Tours` (from `app/Models/Tours.php`)
+- Pagination: 20 tours per page
+
+<Info>
+  Tours are displayed using `Tours::inRandomOrder()->paginate(20)` to ensure fresh variety on each visit.
+</Info>
+
+## Tour Display Information
+
+Each tour listing includes data from the `tours` table:
+
+<Tabs>
+  <Tab title="Accommodation">
+    **Hotel Field**
+    - Name of the hotel or lodge
+    - Primary accommodation for the safari
+    - Required field for all tours
+    
+    **Location**
+    - Geographic location or destination
+    - Examples: "Masai Mara", "Amboseli National Park", "Tsavo East"
+  </Tab>
+  <Tab title="Pricing">
+    **Per Person Sharing**
+    - Cost when sharing a room with another traveler
+    - Typically lower rate
+    - Most economical option
+    
+    **Single Room**
+    - Cost for solo travelers in private room
+    - Premium pricing
+    - Maximum privacy
+    
+    <Tip>
+      Compare both pricing options to choose what fits your budget and travel style.
+    </Tip>
+  </Tab>
+  <Tab title="Logistics">
+    **Transport**
+    - Type of transportation included
+    - Examples: "4x4 Safari Vehicle", "Mini-van", "Luxury Coach"
+    
+    **Meals**
+    - Meal plan details
+    - Examples: "Full Board", "Half Board", "All Inclusive"
+    - Indicates which meals are included
+  </Tab>
+  <Tab title="Visuals">
+    **Tour Images**
+    - Primary image (required)
+    - Image1 (required)
+    - Image2-6 (optional)
+    - Up to 6 total images per tour
+    - Stored in `storage/images` directory
+    
+    <Note>
+      Click on any tour to view all images in the detailed view at `/addtour/show/{id}`
+    </Note>
+  </Tab>
+</Tabs>
+
+## Browsing by Category
+
+Filter tours by main category using the dynamic category route.
+
+### How to Browse Categories
+
+<Steps>
+  <Step title="Select a Category">
+    Click on any category filter or navigate to `/tours/{category}`
+    
+    **Common categories:**
+    - Wildlife Safaris
+    - Beach Holidays
+    - Cultural Tours
+    - Adventure Tours
+    - Honeymoon Packages
+    - Family Safaris
+  </Step>
+  <Step title="View Category Tours">
+    The page loads all tours matching that category via:
+    ```php
+    Tours::where('category', $category)->get()
+    ```
+    Route: `/tours/{category}`
+    
+    Controller: `HomeController::tours($category)`
+  </Step>
+  <Step title="See Category Information">
+    The latest tour in the category is displayed with additional info:
+    - Category description
+    - Additional information field
+    - Category-specific details
+  </Step>
+</Steps>
+
+<Info>
+  Categories are managed through the `categories` table with fields: `category_name`, `sub_category`, `sub_category1`, `sub_category2`
+</Info>
+
+## Browsing by Subcategory
+
+For more specific filtering, use subcategory views.
+
+### Subcategory Navigation
+
+**Route:** `/tours/categories/{sub_category}`
+
+**How it works:**
+
+<Steps>
+  <Step title="Access Subcategories">
+    From a category page, click on subcategory links to drill down further
+  </Step>
+  <Step title="View Filtered Results">
+    Tours are filtered using:
+    ```php
+    Tours::where('sub_category', $sub_category)->get()
+    ```
+  </Step>
+  <Step title="Get Context">
+    The latest tour in the subcategory provides context with its additional info field
+  </Step>
+</Steps>
+
+**Controller:** `HomeController::tour_cat($sub_category)`
+
+**Example subcategories:**
+- Big Five Safaris (under Wildlife Safaris)
+- Diani Beach (under Beach Holidays)
+- Maasai Village Tours (under Cultural Tours)
+
+## Tour Detail View
+
+Click any tour to see complete details.
+
+### Viewing Full Tour Information
+
+**Route:** `/addtour/show/{id}`
+
+**Controller:** `ToursController::show($tours, $id)`
+
+**What's Included:**
+
+<AccordionGroup>
+  <Accordion title="Complete Image Gallery">
+    View all uploaded images for the tour:
+    - `image` - Main image (required)
+    - `image1` - Secondary image (required)
+    - `image2` through `image6` - Additional images (if available)
+    
+    Images stored as paths in the database, loaded from `storage/images`
+  </Accordion>
+  <Accordion title="Detailed Information">
+    All tour database fields displayed:
+    - Hotel/accommodation name
+    - Transport details
+    - Location
+    - Category and subcategory
+    - Per person sharing price
+    - Single room price
+    - Meal plan
+    - Additional information text
+    - Multiple timestamps
+  </Accordion>
+  <Accordion title="Related Content">
+    The page also shows:
+    - All available categories (for navigation)
+    - All blog posts (for inspiration)
+    - Booking call-to-action
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+  Only published tours are displayed to users. Tours have a `published` field (0 = unpublished, 1 = published) controlled by admins.
+</Warning>
+
+## Understanding Tour Data Structure
+
+Tours are stored with the following schema (from `tours` table migration):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | Integer | Unique tour identifier |
+| `hotel` | String | Accommodation name |
+| `transport` | Text | Transport details |
+| `location` | Text | Destination/location |
+| `category` | Text | Main category |
+| `sub_category` | Text | Subcategory classification |
+| `image` | Text | Main image path |
+| `image1` | Text | Secondary image path |
+| `image2` | Text | Optional image path |
+| `per_person_sharing` | Text | Shared room price |
+| `single_room` | Text | Private room price |
+| `meals` | Text | Meal plan details |
+| `additional_info` | Text (nullable) | Extra information |
+| `user_id` | Integer | Admin who created tour |
+| `published` | Integer | Publication status |
+| `created_at` | Timestamp | Creation time |
+| `updated_at` | Timestamp | Last update time |
+
+## Pagination Navigation
+
+<Tip>
+  Use pagination controls at the bottom of the safaris page to navigate through all available tours. Pages load 20 tours at a time.
+</Tip>
+
+**How pagination works:**
+
+- Main safaris page: `paginate(20)`
+- Admin tour management: `paginate(20)`
+- Laravel's built-in pagination with page numbers
+- URL parameter: `?page=2`, `?page=3`, etc.
+
+## Related Blog Content
+
+While browsing tours, you'll see blog posts for inspiration:
+
+**On safaris page:**
+- 2 latest blog posts displayed
+- Route to all blogs: `/all-blogs`
+- Individual blog: `/blogs/show/{id}`
+
+**Blog fields** (from `blogs` table):
+- `title` - Blog post title
+- `content` - Full article content
+- `image` - Featured image
+- `published` - Publication status
+- Timestamps
+
+<Card title="Get Inspired" icon="book-open" href="/features/blog-media">
+  Learn more about blog posts and video content in our Features section
+</Card>
+
+## Tips for Effective Browsing
+
+<CardGroup cols={2}>
+  <Card title="Start Broad" icon="expand">
+    Begin at `/safaris` to see all available options, then filter by category for specific interests
+  </Card>
+  <Card title="Compare Pricing" icon="balance-scale">
+    Always check both per person sharing and single room rates to find the best value
+  </Card>
+  <Card title="Read Additional Info" icon="circle-info">
+    The `additional_info` field often contains important details about itineraries, inclusions, and exclusions
+  </Card>
+  <Card title="Check Multiple Images" icon="images">
+    View all available images to get a complete picture of accommodations and destinations
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+Once you've found your perfect safari:
+
+<Steps>
+  <Step title="Review Details">
+    Ensure the tour matches your dates, budget, and preferences
+  </Step>
+  <Step title="Check Requirements">
+    Note any special requirements you may need to communicate
+  </Step>
+  <Step title="Proceed to Booking">
+    Click the booking button to start the booking process
+  </Step>
+</Steps>
+
+<Card title="Ready to Book?" icon="calendar-check" href="/user-guide/making-bookings">
+  Learn how to complete your safari booking
+</Card>

@@ -1,0 +1,278 @@
+---
+title: System Requirements
+description: Browser requirements and account setup for Safaris Web
+---
+
+## Overview
+
+Safaris Web is a web-based platform accessible from any modern browser. This page outlines the technical requirements to ensure the best experience when browsing tours and making bookings.
+
+## Browser Requirements
+
+<CardGroup cols={2}>
+  <Card title="Recommended Browsers" icon="browser">
+    - Google Chrome (latest version)
+    - Mozilla Firefox (latest version)
+    - Safari (latest version)
+    - Microsoft Edge (latest version)
+  </Card>
+  <Card title="Minimum Requirements" icon="check">
+    - JavaScript enabled
+    - Cookies enabled (for session management)
+    - Screen resolution: 1024x768 or higher
+    - Stable internet connection
+  </Card>
+</CardGroup>
+
+### Browser Features Required
+
+The platform utilizes modern web features that require:
+
+<AccordionGroup>
+  <Accordion title="JavaScript">
+    JavaScript must be enabled for:
+    - Form validation and submission
+    - Dynamic content loading (via Laravel routes)
+    - Search functionality
+    - Image galleries (tours support up to 6 images)
+    - reCAPTCHA verification during booking
+  </Accordion>
+  <Accordion title="Cookies & Session Storage">
+    Cookies are required for:
+    - User authentication (Laravel session-based auth)
+    - Shopping/browsing session maintenance
+    - CSRF token management
+    - "Remember Me" functionality on login
+  </Accordion>
+  <Accordion title="Image Support">
+    Modern image format support for:
+    - JPEG, PNG, SVG, WebP (tour images)
+    - Responsive images for various screen sizes
+  </Accordion>
+</AccordionGroup>
+
+## Account Requirements
+
+### Registration Prerequisites
+
+<Steps>
+  <Step title="Valid Email Address">
+    You need a working email address that can receive verification emails. The platform uses Laravel's `MustVerifyEmail` interface.
+    
+    **Email is used for:**
+    - Account verification (route: `/email/verify/{id}/{hash}`)
+    - Booking confirmations
+    - Password reset functionality
+    - Communication from Safaris Web team
+  </Step>
+  <Step title="Password Requirements">
+    Create a secure password meeting these criteria:
+    - Minimum 8 characters
+    - Stored securely using Laravel's password hashing
+    - Password confirmation required during registration
+  </Step>
+  <Step title="Personal Information">
+    Required for registration:
+    - Full name
+    - Email address
+    - Password
+    
+    Additional information needed for bookings:
+    - Phone number
+    - Country of residence
+  </Step>
+</Steps>
+
+### Email Verification
+
+<Warning>
+  **Verification is mandatory** for booking functionality. Routes with `verified` middleware cannot be accessed without email verification.
+</Warning>
+
+Protected routes requiring verification:
+- `/bookings/new` - Submit new booking (POST)
+- `/profile` - View your profile and bookings
+- `/bookings/edit/{id}` - Edit existing booking
+- All admin routes (if applicable)
+
+**Verification Process:**
+
+1. Register at `/register`
+2. Check email for verification link
+3. Click the link (format: `/email/verify/{id}/{hash}`)
+4. Automatic redirect to home page upon success
+5. Can now access all booking features
+
+<Tip>
+  Didn't receive the verification email? Request a new one at `/email/verification-notification` (throttled to 6 requests per minute).
+</Tip>
+
+## Device Compatibility
+
+### Desktop Computers
+
+<Check>✓ Fully supported - optimal experience</Check>
+
+- All features accessible
+- Best for browsing multiple tour images
+- Recommended for completing booking forms
+
+### Tablets
+
+<Check>✓ Fully supported</Check>
+
+- Responsive design adapts to tablet screens
+- Touch-friendly interface
+- All features functional
+
+### Mobile Phones
+
+<Check>✓ Supported with responsive design</Check>
+
+- Mobile-responsive layout
+- Touch optimized
+- May require horizontal scrolling for large images
+- Form fields optimized for mobile input
+
+## Network Requirements
+
+<Info>
+  Recommended minimum connection speed: 2 Mbps for smooth browsing and image loading.
+</Info>
+
+**Data Usage Estimates:**
+- Homepage: ~2-3 MB (includes images from tours, blogs, videos)
+- Safaris listing page: ~1-2 MB per page (20 tours per page)
+- Individual tour page: ~500 KB - 1 MB (depends on number of images)
+- Booking process: ~200-300 KB
+
+**Why bandwidth matters:**
+- Tours include multiple high-quality images (up to 6 per tour)
+- Video content available at `/videos` route
+- Blog posts may include images
+- Homepage displays highlights, products, services, accommodations, and events
+
+## Security Requirements
+
+### HTTPS Connection
+
+<Check>The platform should be accessed via HTTPS for secure data transmission</Check>
+
+**Protected by HTTPS:**
+- Login credentials
+- Personal information during registration
+- Booking details and transaction codes
+- Password reset tokens
+
+### CSRF Protection
+
+<Info>
+  Laravel's CSRF protection is enabled. Forms automatically include CSRF tokens for security.
+</Info>
+
+### reCAPTCHA
+
+Booking forms include Google reCAPTCHA:
+- Validation rule: `'g-recaptcha-response' => 'required|captcha'`
+- Prevents automated booking submissions
+- Protects against spam and abuse
+
+## File Upload Requirements (Admin)
+
+If you have admin access, image uploads require:
+
+**Accepted formats:** JPG, JPEG, PNG, SVG, WebP
+
+**Used for:**
+- Tour images (validation: `'image' => 'required|mimes:jpg,jpeg,svg,png,webp'`)
+- Accommodation images
+- Event images
+- Service images
+- Blog images
+
+## Accessibility Features
+
+The platform strives to be accessible:
+
+- Semantic HTML structure
+- Form labels and validation messages
+- Alt text support for images
+- Keyboard navigation support
+- Screen reader compatible
+
+<Note>
+  Special requirements? Use the `special_requirements` field during booking to inform the team about accessibility needs.
+</Note>
+
+## Performance Optimization
+
+### Client-Side
+
+- Images stored in Laravel's public storage (`storage/images`)
+- Pagination used throughout (10-20 items per page)
+- Random ordering for varied content display
+
+### Session Management
+
+- PHP session-based authentication
+- Session timeout after inactivity
+- Secure session cookies
+- Remember token for persistent login
+
+## Troubleshooting Common Issues
+
+<AccordionGroup>
+  <Accordion title="Can't Login After Registration">
+    **Issue**: Account created but login fails
+    
+    **Solution**: Check if you verified your email. Visit `/email/verify` to check verification status or request a new link.
+  </Accordion>
+  <Accordion title="Booking Form Won't Submit">
+    **Possible causes:**
+    - Email addresses don't match (validation checks `email1 == email2`)
+    - reCAPTCHA not completed
+    - Missing required fields
+    - Session expired (login again)
+    - Not verified (check email verification)
+  </Accordion>
+  <Accordion title="Images Not Loading">
+    **Possible causes:**
+    - Slow internet connection
+    - Browser cache issues (try clearing cache)
+    - Images stored in `storage/images` - ensure public storage linked
+  </Accordion>
+  <Accordion title="Search Not Working">
+    **Solution**: Ensure JavaScript is enabled. Search functionality at `/search` route uses Laravel query builder with LIKE operators.
+  </Accordion>
+</AccordionGroup>
+
+## Laravel Framework Requirements (For Developers)
+
+Safaris Web is built on Laravel and requires:
+
+- PHP 8.0 or higher
+- Laravel 9.x framework
+- MySQL database
+- Composer for dependencies
+- Node.js and NPM for assets (webpack mix)
+
+**Key Laravel Features Used:**
+- Authentication scaffolding with email verification
+- Eloquent ORM for database operations
+- Blade templating engine
+- File storage system
+- Middleware for route protection
+- Validation rules
+
+<Tip>
+  Developers: See the Development tab for complete setup instructions.
+</Tip>
+
+## Support
+
+If your setup doesn't meet these requirements or you experience technical issues:
+
+- Visit `/help` for assistance
+- Check `/faqs` for common solutions
+- Submit an enquiry via `/enquiries`
+- Review the travel information at `/travel-info`

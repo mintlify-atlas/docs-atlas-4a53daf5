@@ -1,0 +1,348 @@
+---
+title: 'Admin Authentication'
+description: 'Complete guide to admin login, registration, and email verification in Safaris Web'
+---
+
+## Overview
+
+Safaris Web uses Laravel's built-in authentication system with email verification enabled. All admin operations require users to be authenticated and have verified their email addresses.
+
+## Authentication Routes
+
+The application uses Laravel's default authentication routes with email verification:
+
+```php
+// Enable authentication routes with verification
+Auth::routes(['verify' => true]);
+```
+
+This generates the following routes:
+
+### Login Routes
+
+| Method | Route | Name | Description |
+|--------|-------|------|-------------|
+| GET | `/login` | `login` | Display login form |
+| POST | `/login` | - | Process login credentials |
+| POST | `/logout` | `logout` | Log out current user |
+
+### Registration Routes
+
+| Method | Route | Name | Description |
+|--------|-------|------|-------------|
+| GET | `/register` | `register` | Display registration form |
+| POST | `/register` | - | Process registration |
+
+### Password Reset Routes
+
+| Method | Route | Name | Description |
+|--------|-------|------|-------------|
+| GET | `/password/reset` | `password.request` | Display reset form |
+| POST | `/password/email` | `password.email` | Send reset link |
+| GET | `/password/reset/{token}` | `password.reset` | Reset with token |
+| POST | `/password/reset` | `password.update` | Update password |
+
+## Email Verification
+
+<Note>
+  Email verification is **required** for all create, update, and delete operations in the admin dashboard.
+</Note>
+
+### Email Verification Routes
+
+The application implements custom email verification routes:
+
+#### Verification Notice
+
+```php
+Route::get('/email/verify', function () {
+    return view('auth.verify');
+})->middleware('auth')->name('verification.notice');
+```
+
+**Route:** `/email/verify`  
+**Name:** `verification.notice`  
+**Middleware:** `auth`  
+**Purpose:** Display email verification notice to users who haven't verified their email
+
+#### Verification Link Handler
+
+```php
+Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
+    $request->fulfill();
+    return redirect('/');
+})->middleware(['auth', 'signed'])->name('verification.verify');
+```
+
+**Route:** `/email/verify/{id}/{hash}`  
+**Name:** `verification.verify`  
+**Middleware:** `auth`, `signed`  
+**Purpose:** Process email verification when user clicks link in email
+
+<Steps>
+  <Step title="User clicks verification link in email">
+    The link contains a signed URL with user ID and hash
+  </Step>
+  
+  <Step title="Request is verified">
+    Laravel validates the signature and marks email as verified
+  </Step>
+  
+  <Step title="User is redirected">
+    Successful verification redirects to homepage `/`
+  </Step>
+</Steps>
+
+#### Resend Verification Email
+
+```php
+Route::post('/email/verification-notification', function (Request $request) {
+    $request->user()->sendEmailVerificationNotification();
+    return back()->with('message', 'Verification link sent!');
+})->middleware(['auth', 'throttle:6,1'])->name('verification.send');
+```
+
+**Route:** `/email/verification-notification`  
+**Name:** `verification.send`  
+**Method:** POST  
+**Middleware:** `auth`, `throttle:6,1`  
+**Rate Limit:** 6 requests per minute  
+**Purpose:** Resend verification email to user
+
+## User Model Configuration
+
+The User model implements the `MustVerifyEmail` contract:
+
+```php
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+class User extends Authenticatable implements MustVerifyEmail
+{
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+    ];
+}
+```
+
+### User Attributes
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | User's full name |
+| `email` | string | User's email address (must be unique) |
+| `password` | string | Hashed password |
+| `email_verified_at` | datetime | Timestamp of email verification |
+| `remember_token` | string | Token for "remember me" functionality |
+
+## Protected Routes
+
+Routes requiring authentication and verification:
+
+<AccordionGroup>
+  <Accordion title="Tours Management" icon="map">
+    ```php
+    // Create tour
+    Route::get('/addtour/create', [ToursController::class, 'create'])
+      ->middleware(['auth', 'verified']);
+    
+    // Store tour
+    Route::post('/addtour/store', [ToursController::class, 'store'])
+      ->middleware(['auth', 'verified']);
+    
+    // Edit tour
+    Route::get('/addtour/edit/{id}', [ToursController::class, 'edit'])
+      ->middleware(['auth', 'verified']);
+    
+    // Update tour
+    Route::post('/addtour/update/{id}', [ToursController::class, 'update'])
+      ->middleware(['auth', 'verified']);
+    
+    // Delete tour
+    Route::delete('/addtour/delete/{id}', [ToursController::class, 'destroy'])
+      ->middleware(['auth', 'verified']);
+    
+    // Publish/unpublish tour
+    Route::put('/addtour/publish/{id}', [ToursController::class, 'publish'])
+      ->middleware(['auth', 'verified']);
+    ```
+  </Accordion>
+  
+  <Accordion title="Bookings Management" icon="calendar">
+    ```php
+    // List all bookings
+    Route::get('/bookings', [BookingController::class, 'index'])
+      ->middleware(['auth', 'verified']);
+    
+    // View booking details
+    Route::get('/bookings/show/{id}', [BookingController::class, 'show'])
+      ->middleware(['auth', 'verified']);
+    
+    // Store new booking
+    Route::post('/bookings/new', [BookingController::class, 'store'])
+      ->middleware(['auth', 'verified']);
+    
+    // Edit booking
+    Route::get('/bookings/edit/{id}', [BookingController::class, 'edit'])
+      ->middleware(['auth', 'verified']);
+    
+    // Update booking
+    Route::post('/bookings/update/{id}', [BookingController::class, 'update'])
+      ->middleware(['auth', 'verified']);
+    
+    // Delete booking
+    Route::delete('/bookings/delete/{id}', [BookingController::class, 'destroy'])
+      ->middleware(['auth', 'verified']);
+    
+    // Confirm booking
+    Route::delete('/bookings/publish/{id}', [BookingController::class, 'confirm'])
+      ->middleware(['auth', 'verified']);
+    ```
+  </Accordion>
+  
+  <Accordion title="Blog Management" icon="newspaper">
+    ```php
+    // Create blog post
+    Route::get('/blogs/create', [BlogController::class, 'create'])
+      ->middleware(['auth', 'verified']);
+    
+    // Store blog post
+    Route::post('/blogs/store', [BlogController::class, 'store'])
+      ->middleware(['auth', 'verified']);
+    
+    // Edit blog post
+    Route::get('/blogs/edit/{id}', [BlogController::class, 'edit'])
+      ->middleware(['auth', 'verified']);
+    
+    // Update blog post
+    Route::post('/blogs/update/{id}', [BlogController::class, 'update'])
+      ->middleware(['auth', 'verified']);
+    
+    // Delete blog post
+    Route::delete('/blogs/delete/{id}', [BlogController::class, 'destroy'])
+      ->middleware(['auth', 'verified']);
+    
+    // Publish/unpublish blog post
+    Route::put('/blogs/publish/{id}', [BlogController::class, 'publish'])
+      ->middleware(['auth', 'verified']);
+    ```
+  </Accordion>
+  
+  <Accordion title="Videos Management" icon="video">
+    ```php
+    // Create video
+    Route::get('/videos/create', [VideoController::class, 'create'])
+      ->middleware(['auth', 'verified']);
+    
+    // Store video
+    Route::post('/videos/store', [VideoController::class, 'store'])
+      ->middleware(['auth', 'verified']);
+    
+    // Edit video
+    Route::get('/videos/edit/{id}', [VideoController::class, 'edit'])
+      ->middleware(['auth', 'verified']);
+    
+    // Update video
+    Route::post('/videos/update/{id}', [VideoController::class, 'update'])
+      ->middleware(['auth', 'verified']);
+    
+    // Delete video
+    Route::delete('/videos/delete/{id}', [VideoController::class, 'destroy'])
+      ->middleware(['auth', 'verified']);
+    ```
+  </Accordion>
+  
+  <Accordion title="Categories Management" icon="folder">
+    ```php
+    // Create category
+    Route::get('/category/create', [CategoryController::class, 'create'])
+      ->middleware(['auth', 'verified']);
+    
+    // Store category
+    Route::post('/category/new', [CategoryController::class, 'store'])
+      ->middleware(['auth', 'verified']);
+    
+    // Edit category
+    Route::get('/category/edit/{id}', [CategoryController::class, 'edit'])
+      ->middleware(['auth', 'verified']);
+    
+    // Update category
+    Route::post('/category/update/{id}', [CategoryController::class, 'update'])
+      ->middleware(['auth', 'verified']);
+    
+    // Delete category
+    Route::delete('/category/delete/{id}', [CategoryController::class, 'destroy'])
+      ->middleware(['auth', 'verified']);
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Authentication Workflow
+
+<Steps>
+  <Step title="Register an Account">
+    Navigate to `/register` and create an account with:
+    - Name
+    - Email address
+    - Password
+    - Password confirmation
+  </Step>
+  
+  <Step title="Verify Your Email">
+    Check your email for a verification link and click it. The link will direct you to `/email/verify/{id}/{hash}`.
+  </Step>
+  
+  <Step title="Access Admin Dashboard">
+    Once verified, navigate to `/admin` or `/dashboard` to access administrative features.
+  </Step>
+  
+  <Step title="Manage Content">
+    You can now create, edit, and delete tours, blogs, videos, categories, and manage bookings.
+  </Step>
+</Steps>
+
+<Warning>
+  If you attempt to access protected routes without email verification, you will be redirected to `/email/verify` with a notice to verify your email.
+</Warning>
+
+## Rate Limiting
+
+The verification email resend endpoint is rate-limited to prevent abuse:
+
+- **Limit:** 6 requests per minute per user
+- **Middleware:** `throttle:6,1`
+
+If you exceed this limit, you'll receive a "Too Many Requests" error and must wait before requesting another verification email.
+
+## Security Features
+
+<CardGroup cols={2}>
+  <Card title="Password Hashing" icon="shield">
+    All passwords are hashed using Laravel's Hash facade with bcrypt
+  </Card>
+  
+  <Card title="Signed URLs" icon="signature">
+    Email verification links use signed URLs to prevent tampering
+  </Card>
+  
+  <Card title="CSRF Protection" icon="lock">
+    All forms include CSRF tokens to prevent cross-site request forgery
+  </Card>
+  
+  <Card title="Rate Limiting" icon="gauge">
+    Email verification requests are rate-limited to prevent abuse
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="User Roles" icon="users" href="/admin/user-roles">
+    Learn about user permissions and access levels
+  </Card>
+  
+  <Card title="Managing Tours" icon="map" href="/admin/managing-tours">
+    Start creating tour packages
+  </Card>
+</CardGroup>

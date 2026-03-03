@@ -1,0 +1,367 @@
+---
+title: 'User Roles and Permissions'
+description: 'Understanding user roles, permissions, and access control in Safaris Web'
+---
+
+## Overview
+
+Safaris Web uses a simple authentication-based permission system. The current implementation focuses on two main access levels: authenticated users and guests.
+
+## Access Levels
+
+### Guest Users (Unauthenticated)
+
+Guest users have access to public-facing content:
+
+**Allowed Actions:**
+- View published tours (`/safaris`, `/tours/{category}`)
+- Browse blog posts (`/blog`, `/blogs/show/{id}`)
+- Watch videos (`/videos`)
+- Submit enquiries (`/enquiries/create`, `/enquiries/store`)
+- View static pages (about, contact, FAQs, etc.)
+- Search for tours (`/search`)
+
+**Restricted Actions:**
+- Cannot access admin dashboard
+- Cannot create, edit, or delete content
+- Cannot manage bookings
+- Cannot view user profiles
+
+### Authenticated Users (Logged In)
+
+Authenticated users must have a verified email to access most admin functionality.
+
+**Allowed Actions:**
+- Access admin dashboard (`/admin`, `/dashboard`)
+- View their own profile (`/profile`)
+- View all content in admin mode
+
+**Required for Content Management:**
+
+All create, update, delete operations require `['auth', 'verified']` middleware.
+
+## User Model
+
+The User model implements email verification:
+
+```php
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+class User extends Authenticatable implements MustVerifyEmail
+{
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
+
+    public function bookings()
+    {
+        return $this->hasMany('App\\Booking');
+    }
+}
+```
+
+### User Attributes
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `id` | integer | Unique user identifier |
+| `name` | string | User's full name |
+| `email` | string | User's email address (unique) |
+| `email_verified_at` | datetime | Timestamp when email was verified |
+| `password` | string | Hashed password |
+| `remember_token` | string | Token for "remember me" functionality |
+| `created_at` | datetime | Account creation timestamp |
+| `updated_at` | datetime | Last account update timestamp |
+
+### User Relationships
+
+**Bookings:** A user can have many bookings
+
+```php
+$user->bookings(); // Returns all bookings created by this user
+```
+
+## Middleware Protection
+
+Safaris Web uses Laravel's built-in middleware for access control:
+
+### Auth Middleware
+
+Protects routes that require authentication:
+
+```php
+->middleware('auth')
+```
+
+**Applied to:**
+- Admin dashboard (`/admin`, `/dashboard`)
+- User profile (`/profile`)
+- All content management routes
+
+**Behavior:** Redirects unauthenticated users to login page
+
+### Verified Middleware
+
+Requires email verification for sensitive operations:
+
+```php
+->middleware(['auth', 'verified'])
+```
+
+**Applied to:**
+- Creating tours, blogs, videos, categories
+- Editing tours, blogs, videos, categories
+- Deleting tours, blogs, videos, categories
+- Publishing/unpublishing content
+- Managing bookings
+- Viewing bookings list
+
+**Behavior:** Redirects unverified users to `/email/verify`
+
+## Permission Matrix
+
+<Note>
+  The current implementation does not include role-based access control (RBAC). All authenticated and verified users have the same permissions.
+</Note>
+
+### Tours Management
+
+| Action | Route Name | Method | Middleware | Guest | Authenticated | Verified |
+|--------|-----------|--------|------------|-------|---------------|----------|
+| List tours | `tours` | GET | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| View tour | `addtour.show` | GET | None | ✅ | ✅ | ✅ |
+| Create tour | `addtour.create` | GET | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Store tour | `addtour.store` | POST | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Edit tour | `addtour.edit` | GET | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Update tour | `addtour.update` | POST | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Delete tour | `addtour.delete` | DELETE | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Publish tour | `addtour.publish` | PUT | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+
+### Bookings Management
+
+| Action | Route Name | Method | Middleware | Guest | Authenticated | Verified |
+|--------|-----------|--------|------------|-------|---------------|----------|
+| List bookings | `bookings` | GET | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| View booking | `bookings.show` | GET | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Create booking | `bookings.create` | GET | None | ✅ | ✅ | ✅ |
+| Store booking | `bookings.store` | POST | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Edit booking | `bookings.edit` | GET | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Update booking | `bookings.update` | POST | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Delete booking | `bookings.delete` | DELETE | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Confirm booking | `bookings.confirm` | DELETE | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+
+### Blog Management
+
+| Action | Route Name | Method | Middleware | Guest | Authenticated | Verified |
+|--------|-----------|--------|------------|-------|---------------|----------|
+| List blogs | `blogs` | GET | None | ✅ | ✅ | ✅ |
+| View blog | `blogs.show` | GET | None | ✅ | ✅ | ✅ |
+| Create blog | `blogs.create` | GET | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Store blog | `blogs.store` | POST | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Edit blog | `blogs.edit` | GET | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Update blog | `blogs.update` | POST | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Delete blog | `blogs.delete` | DELETE | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Publish blog | `blogs.publish` | PUT | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+
+### Video Management
+
+| Action | Route Name | Method | Middleware | Guest | Authenticated | Verified |
+|--------|-----------|--------|------------|-------|---------------|----------|
+| List videos | `videos` | GET | None | ✅ | ✅ | ✅ |
+| Create video | `videos.create` | GET | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Store video | `videos.store` | POST | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Edit video | `videos.edit` | GET | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Update video | `videos.update` | POST | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Delete video | `videos.delete` | DELETE | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+
+### Category Management
+
+| Action | Route Name | Method | Middleware | Guest | Authenticated | Verified |
+|--------|-----------|--------|------------|-------|---------------|----------|
+| List categories | `categories` | GET | None | ✅ | ✅ | ✅ |
+| Create category | `category.create` | GET | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Store category | `category.store` | POST | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Edit category | `category.edit` | GET | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Update category | `category.update` | POST | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Delete category | `category.delete` | DELETE | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+
+### User Management
+
+| Action | Route Name | Method | Middleware | Guest | Authenticated | Verified |
+|--------|-----------|--------|------------|-------|---------------|----------|
+| List users | `users` | GET | None | ✅ | ✅ | ✅ |
+| View profile | `profile` | GET | `['auth', 'verified']` | ❌ | ❌ | ✅ |
+| Edit user | `updatePage` | GET | None | ✅ | ✅ | ✅ |
+| Update user | `updateUser` | POST | None | ✅ | ✅ | ✅ |
+| Delete user | `deleteUser` | DELETE | None | ✅ | ✅ | ✅ |
+
+<Warning>
+  User management routes (`/users/*`) are currently **not protected** by authentication middleware. This may be a security concern and should be reviewed.
+</Warning>
+
+### Enquiries Management
+
+| Action | Route | Method | Middleware | Guest | Authenticated | Verified |
+|--------|-------|--------|------------|-------|---------------|----------|
+| List enquiries | `/enquiries` | GET | None | ✅ | ✅ | ✅ |
+| Create enquiry | `/enquiries/create` | GET | None | ✅ | ✅ | ✅ |
+| Store enquiry | `/enquiries` | POST | None | ✅ | ✅ | ✅ |
+| View enquiry | `/enquiries/{id}` | GET | None | ✅ | ✅ | ✅ |
+| Edit enquiry | `/enquiries/{id}/edit` | GET | None | ✅ | ✅ | ✅ |
+| Update enquiry | `/enquiries/{id}` | PUT | None | ✅ | ✅ | ✅ |
+| Delete enquiry | `/enquiries/{id}` | DELETE | None | ✅ | ✅ | ✅ |
+
+<Note>
+  Enquiries use Laravel's resource controller, which generates standard CRUD routes. Currently, these routes are **not protected** by authentication middleware, allowing guests to submit enquiries.
+</Note>
+
+## Checking User Status
+
+You can check user authentication and verification status in your application:
+
+### Check if User is Authenticated
+
+```php
+use Illuminate\Support\Facades\Auth;
+
+if (Auth::check()) {
+    // User is logged in
+    $user = Auth::user();
+}
+```
+
+### Check if Email is Verified
+
+```php
+if (Auth::user()->hasVerifiedEmail()) {
+    // User has verified their email
+}
+```
+
+### Get Current User
+
+```php
+$user = Auth::user();
+$userId = Auth::id();
+$userName = Auth::user()->name;
+$userEmail = Auth::user()->email;
+```
+
+## Content Ownership
+
+When creating content, the authenticated user's ID is automatically attached:
+
+### Tours
+```php
+$tours->user_id = Auth::id();
+```
+*Source: ToursController.php:130*
+
+### Blogs
+```php
+$blog->user_id = Auth::id();
+```
+*Source: BlogController.php:92, BlogController.php:170*
+
+### Bookings
+```php
+$booking->user_id = Auth::user()->id;
+```
+*Source: BookingController.php:97*
+
+## Implementing Role-Based Access Control (RBAC)
+
+<Note>
+  The current implementation does **not** include role-based access control. All verified users have the same permissions.
+</Note>
+
+To implement RBAC, consider adding:
+
+<Steps>
+  <Step title="Add Role Field to Users Table">
+    Create a migration to add a `role` column:
+    ```php
+    Schema::table('users', function (Blueprint $table) {
+        $table->string('role')->default('user');
+    });
+    ```
+  </Step>
+  
+  <Step title="Create Middleware for Role Checking">
+    Create a custom middleware to check user roles:
+    ```php
+    php artisan make:middleware CheckRole
+    ```
+  </Step>
+  
+  <Step title="Apply Role Middleware to Routes">
+    Protect routes with role-based middleware:
+    ```php
+    Route::middleware(['auth', 'verified', 'role:admin'])
+        ->group(function () {
+            // Admin-only routes
+        });
+    ```
+  </Step>
+  
+  <Step title="Update User Model">
+    Add helper methods to check roles:
+    ```php
+    public function isAdmin() {
+        return $this->role === 'admin';
+    }
+    ```
+  </Step>
+</Steps>
+
+## Security Recommendations
+
+<Warning>
+  **Important Security Considerations:**
+  
+  1. User management routes (`/users/*`) are not protected by authentication middleware
+  2. Enquiry routes are publicly accessible, which may be intentional but should be reviewed
+  3. Consider implementing role-based access control for better permission management
+  4. Add authorization policies to check if users can edit/delete specific resources
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="Add Authentication to User Routes" icon="lock">
+    Protect user management routes with `auth` and `verified` middleware
+  </Card>
+  
+  <Card title="Implement Authorization Policies" icon="shield">
+    Use Laravel policies to check if users can update/delete specific resources
+  </Card>
+  
+  <Card title="Add Role-Based Access Control" icon="users">
+    Create admin, editor, and user roles with different permission levels
+  </Card>
+  
+  <Card title="Audit Log" icon="list">
+    Track who creates, updates, and deletes content for accountability
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="User Management" icon="users" href="/admin/user-management">
+    Learn how to manage user accounts
+  </Card>
+  
+  <Card title="Authentication" icon="lock" href="/admin/authentication">
+    Review authentication and email verification
+  </Card>
+</CardGroup>

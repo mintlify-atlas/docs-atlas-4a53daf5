@@ -1,80 +1,213 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get started with Safaris Web in minutes - from account creation to booking your first safari
 ---
 
-## Get started in three steps
+Get up and running with Safaris Web quickly. This guide walks you through creating an account, browsing tours, and making your first booking.
 
-Get your documentation site running locally and make your first customization.
+<Steps>
+  <Step title="Create your account">
+    Visit the Safaris Web homepage and register for an account.
 
-### Step 1: Set up your local environment
+    **Required Information:**
+    - Full name (first and last name)
+    - Email address
+    - Password (must be secure)
+    - Phone number
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    <Note>
+      After registration, you'll receive a verification email. You must verify your email address before making bookings.
+    </Note>
 
-### Step 2: Deploy your changes
+    **Email Verification Process:**
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    1. Check your email inbox for a verification link
+    2. Click the verification link to activate your account
+    3. You'll be redirected to the homepage once verified
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    If you don't receive the email:
+    - Check your spam/junk folder
+    - Click "Resend verification email" from the verification notice page
+    - The system allows up to 6 verification emails per hour (throttled)
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    <Info>
+      Email verification is required to make bookings. This ensures we can send you booking confirmations and important updates.
+    </Info>
+  </Step>
 
-### Step 3: Go live
+  <Step title="Browse available tours">
+    Explore the safari and tour offerings through multiple discovery methods.
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    **Browse by Category:**
 
-## Next steps
+    Navigate to `/safaris` to view all available tours, or browse by specific categories:
 
-Now that you have your docs running, explore these key features:
+    - **Safari tours** - Wildlife safaris, game drives, national park visits
+    - **Adventure tours** - Hiking, mountain climbing, water sports
+    - **Cultural experiences** - Village visits, cultural immersion, heritage sites
+    - **Beach holidays** - Coastal resorts, water activities, island getaways
+    - **Specialty tours** - Photography safaris, bird watching, conservation tours
+
+    **Tour Information Displayed:**
+
+    Each tour listing shows:
+    - Tour name and destination
+    - Featured image (main thumbnail)
+    - Pricing options (per person sharing / single room)
+    - Tour category
+    - Brief description
+    - Duration and itinerary highlights
+
+    **View Detailed Tour Information:**
+
+    Click on any tour to see:
+    - Complete itinerary and schedule
+    - Full pricing breakdown
+    - Accommodation details (hotel/lodge information)
+    - Transportation arrangements
+    - Meals included
+    - Up to 6 high-quality images
+    - What's included and excluded
+    - Booking requirements
+
+    <Tip>
+      Tours are paginated with 20 tours per page. Use the pagination controls at the bottom to browse through all available options.
+    </Tip>
+  </Step>
+
+  <Step title="Make your first booking">
+    Once you've found the perfect tour, submit a booking request.
+
+    **Booking Process:**
+
+    1. **From the tour details page**, click the "Book Now" button
+    2. You'll be directed to `/bookings/create/{destination}` where `{destination}` is the tour name
+    3. Complete the booking form with the following information:
+
+    **Required Booking Information:**
+
+    ```javascript
+    {
+      first_name: "Your first name",
+      last_name: "Your last name",
+      email: "your.email@example.com",
+      phone_number: "Your contact number",
+      adults: "Number of adult travelers",
+      kids: "Number of children",
+      destination: "Tour/safari destination",
+      check_in: "Check-in date",
+      check_out: "Check-out date",
+      amount: "Total booking amount",
+      status: "pending", // Automatically set
+      transaction_code: "Generated unique code"
+    }
+    ```
+
+    <Note>
+      You must be logged in and have a verified email address to submit bookings. The form will redirect to login if you're not authenticated.
+    </Note>
+
+    **Security & Validation:**
+
+    - **reCAPTCHA Protection**: All booking submissions are protected by Google reCAPTCHA v3 to prevent spam and automated abuse
+    - **Authentication Required**: The booking submission route requires both `auth` and `verified` middleware
+    - **Form Validation**: Server-side validation ensures all required fields are provided
+
+    **After Submission:**
+
+    1. Your booking is created with status `pending`
+    2. A unique transaction code is generated for tracking
+    3. You'll be redirected to your bookings dashboard at `/bookings`
+    4. You can view your booking details at `/bookings/show/{id}`
+
+    <Warning>
+      Bookings are initially marked as "pending" and require admin confirmation. You'll receive updates once your booking is reviewed.
+    </Warning>
+  </Step>
+
+  <Step title="Manage your bookings">
+    Track and manage all your safari bookings from your personal dashboard.
+
+    **Access Your Bookings:**
+
+    Navigate to `/bookings` (requires login and verified email) to see:
+
+    - All your booking requests
+    - Booking status (pending, confirmed, cancelled)
+    - Tour details and dates
+    - Transaction codes
+    - Total amounts
+
+    **Booking Actions:**
+
+    - **View Details**: Click on any booking to see full information
+    - **Edit Booking**: Modify dates, traveler count, or other details (route: `/bookings/edit/{id}`)
+    - **Cancel Booking**: Request cancellation for pending bookings
+
+    **Profile Management:**
+
+    Access your profile at `/profile` to:
+    - Update your personal information
+    - View booking history
+    - Manage account settings
+    - Change password
+
+    <Info>
+      Your booking history is permanently saved and accessible anytime. Completed tours remain in your history for future reference.
+    </Info>
+  </Step>
+</Steps>
+
+## Quick Links
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Browse Tours" icon="binoculars" href="/user-guide/browsing-tours">
+    Explore all safari and tour options available
+  </Card>
+  
+  <Card title="Booking Guide" icon="calendar-check" href="/user-guide/making-bookings">
+    Detailed guide to the booking process
+  </Card>
+  
+  <Card title="User Profile" icon="user" href="/user-guide/profile-management">
+    Manage your account and view booking history
+  </Card>
+  
+  <Card title="Search & Filters" icon="filter" href="/user-guide/search-filters">
+    Learn how to find the perfect tour
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Common Questions
+
+<Accordion title="Do I need to verify my email to browse tours?">
+  No, you can browse all tours without logging in. However, email verification is required to make bookings or submit enquiries.
+</Accordion>
+
+<Accordion title="How long does booking confirmation take?">
+  Booking confirmations are processed by administrators. You'll receive an email notification once your booking status changes from "pending" to "confirmed". Check the admin team's working hours for typical response times.
+</Accordion>
+
+<Accordion title="Can I modify a booking after submission?">
+  Yes, you can edit pending bookings through your bookings dashboard at `/bookings/edit/{id}`. Once a booking is confirmed, contact the admin team for modifications.
+</Accordion>
+
+<Accordion title="What payment methods are accepted?">
+  Payment details and methods are confirmed after your booking request is reviewed by the admin team. You'll receive payment instructions via email.
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Tour Features" icon="star" href="/features/tours-safaris">
+    Learn about tour pricing, categories, and details
+  </Card>
+  
+  <Card title="Accommodations" icon="hotel" href="/features/accommodations">
+    Explore accommodation options
+  </Card>
+  
+  <Card title="Events" icon="calendar-days" href="/features/events">
+    Discover upcoming events and special tours
+  </Card>
+</CardGroup>

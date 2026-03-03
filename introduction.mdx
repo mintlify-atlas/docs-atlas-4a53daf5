@@ -1,0 +1,126 @@
+---
+title: Welcome to Safaris Web
+description: Your gateway to unforgettable Kenya safari experiences
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.svg"
+  alt="Safaris Web Platform"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.svg"
+  alt="Safaris Web Platform"
+/>
+
+## Experience Kenya Like Never Before
+
+Safaris Web is a comprehensive tour booking platform designed to connect travelers with authentic Kenya safari experiences. Browse curated tours, book accommodations, discover events, and plan your perfect African adventure.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card
+    title="Browse Tours & Safaris"
+    icon="binoculars"
+    href="/user-guide/browsing-tours"
+  >
+    Explore diverse safari packages across Kenya's iconic destinations including Masai Mara, Amboseli, and Tsavo National Parks.
+  </Card>
+  <Card
+    title="Easy Booking Process"
+    icon="calendar-check"
+    href="/user-guide/making-bookings"
+  >
+    Secure your dream safari with our streamlined booking system. Track adults, kids, arrival dates, and special requirements.
+  </Card>
+  <Card
+    title="Accommodation Options"
+    icon="hotel"
+    href="/features/accommodations"
+  >
+    Find the perfect place to stay with our curated selection of hotels, lodges, and camps across Kenya.
+  </Card>
+  <Card
+    title="Events & Experiences"
+    icon="calendar-star"
+    href="/features/events"
+  >
+    Discover special events, cultural experiences, and seasonal attractions to enhance your safari adventure.
+  </Card>
+</CardGroup>
+
+## Platform Overview
+
+Safaris Web is built on Laravel and provides:
+
+- **Tour Discovery**: Dynamic category and subcategory filtering via `/tours/{category}` and `/tours/categories/{sub_category}` routes
+- **Search Functionality**: Advanced search to find safaris by destination, hotel, or preferences (route: `/search`)
+- **User Profiles**: Manage your bookings and view history at `/profile`
+- **Content Library**: Access travel blogs and video content to inspire your journey
+- **Multiple Services**: Tours, accommodations, events, and additional services all in one platform
+
+## How It Works
+
+<Steps>
+  <Step title="Create Your Account">
+    Sign up with email verification to access booking features. Route: `/register`
+  </Step>
+  <Step title="Browse & Search">
+    Explore safaris by category or use search to find specific destinations at `/safaris`
+  </Step>
+  <Step title="Select Your Safari">
+    View detailed tour information including hotels, transport, meals, and pricing per person sharing or single room
+  </Step>
+  <Step title="Complete Booking">
+    Provide traveler details, arrival date, and transaction code via `/bookings/create/{destination}`
+  </Step>
+  <Step title="Confirmation">
+    Receive booking confirmation within 24 hours and manage your booking from your profile
+  </Step>
+</Steps>
+
+## What Makes Us Different
+
+<AccordionGroup>
+  <Accordion title="Verified Tours">
+    All tours are verified and managed through our admin system. Each tour includes verified accommodation, transport, and meal details.
+  </Accordion>
+  <Accordion title="Comprehensive Information">
+    Tours include multiple images (up to 6), detailed location information, category classification, and additional info fields for complete transparency.
+  </Accordion>
+  <Accordion title="Flexible Options">
+    Pricing for both per person sharing and single room options. Accommodates adults and kids with special requirements field.
+  </Accordion>
+  <Accordion title="Integrated Blog & Media">
+    Learn about destinations through our blog (route: `/all-blogs`) and video gallery (route: `/videos`) before booking.
+  </Accordion>
+</AccordionGroup>
+
+## Get Started
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart Guide"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Jump right in with our step-by-step setup guide
+  </Card>
+  <Card
+    title="System Requirements"
+    icon="laptop"
+    href="/system-requirements"
+  >
+    Check browser and account requirements
+  </Card>
+</CardGroup>
+
+<Note>
+  **Email Verification Required**: You must verify your email address before making bookings. Check your inbox for the verification link after registration.
+</Note>
+
+## Need Help?
+
+Visit our help page at `/help` or check our frequently asked questions at `/faqs` for quick answers to common questions.

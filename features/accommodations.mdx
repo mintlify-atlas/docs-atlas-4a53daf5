@@ -1,0 +1,597 @@
+---
+title: Accommodations
+description: Accommodation options, booking, and features on Safaris Web
+---
+
+## Overview
+
+Safaris Web features a dedicated accommodations section separate from full safari packages. Browse and book hotels, lodges, camps, and resorts across Kenya through the accommodations feature.
+
+<Info>
+  Accommodations are managed through the `Accomodation` model (`app/Models/Accomodation.php`) - note the spelling in the codebase.
+</Info>
+
+## Accommodation Structure
+
+From the `create_accomodations_table` migration:
+
+### Database Schema
+
+<Tabs>
+  <Tab title="Basic Info">
+    | Field | Type | Required | Description |
+    |-------|------|----------|-------------|
+    | `id` | Integer | Auto | Unique identifier |
+    | `name` | String | Yes | Accommodation name |
+    | `slug` | String | Yes | Unique URL-friendly identifier |
+    | `location` | String | Yes | Geographic location |
+    | `category` | String | Yes | Accommodation type |
+  </Tab>
+  <Tab title="Details & Pricing">
+    | Field | Type | Description |
+    |-------|------|-------------|
+    | `description` | Text | Full description of accommodation |
+    | `rates` | String | Pricing information |
+    
+    <Note>
+      Description field stores comprehensive information about facilities, amenities, and features.
+    </Note>
+  </Tab>
+  <Tab title="Images">
+    | Field | Type | Required |
+    |-------|------|----------|
+    | `image` | String | Yes |
+    | `image2` | String | Yes |
+    | `image3` | String | Yes |
+    | `image4` | String | Yes |
+    
+    <Tip>
+      Accommodations require 4 images to provide comprehensive visual representation
+    </Tip>
+  </Tab>
+  <Tab title="Management">
+    | Field | Type | Default | Description |
+    |-------|------|---------|-------------|
+    | `user_id` | Integer | - | Admin who created entry |
+    | `published` | Integer | 0 | 0 = draft, 1 = live |
+    | `created_at` | Timestamp | Auto | Creation date |
+    | `updated_at` | Timestamp | Auto | Last update |
+  </Tab>
+</Tabs>
+
+## Accommodation Categories
+
+Accommodations are classified by category type:
+
+<CardGroup cols={2}>
+  <Card title="Luxury Lodges" icon="gem">
+    High-end lodges with premium amenities and services
+  </Card>
+  <Card title="Tented Camps" icon="campground">
+    Safari tents offering authentic bush experience with comfort
+  </Card>
+  <Card title="Beach Resorts" icon="umbrella-beach">
+    Coastal properties along Indian Ocean shoreline
+  </Card>
+  <Card title="Budget Hotels" icon="bed">
+    Affordable accommodation options for budget travelers
+  </Card>
+  <Card title="Mid-Range Hotels" icon="hotel">
+    Comfortable hotels with good amenities at reasonable prices
+  </Card>
+  <Card title="Boutique Properties" icon="house-user">
+    Unique, character-filled smaller establishments
+  </Card>
+</CardGroup>
+
+**Category Filtering:**
+- Route: `/accomodation/category/{category}`
+- Controller: `AccomodationController::category($category)`
+
+## Browsing Accommodations
+
+### Main Accommodations Page
+
+**Route:** `/accomodations`
+
+**Controller:** `AccomodationController::index()`
+
+**Display:**
+```php
+$accomodations = Accomodation::orderBy('id','desc')->get();
+```
+
+**Features:**
+- All published accommodations
+- Ordered by most recent first
+- Category filter options
+- Image galleries for each property
+
+### Homepage Display
+
+Accommodations also appear on the homepage:
+
+**Route:** `/`
+
+**Controller:** `HomeController::index()`
+
+**Query:**
+```php
+$accomodations = Accomodation::orderBy('id','desc')->get();
+```
+
+<Info>
+  Latest accommodations are prominently featured on the homepage to showcase new properties and options.
+</Info>
+
+## Accommodation Detail Page
+
+**Route:** `/accomodation/{slug}`
+
+**Controller:** `AccomodationController::show($slug)`
+
+<Steps>
+  <Step title="Access via Slug">
+    Each accommodation has a unique slug for SEO-friendly URLs
+    
+    Example: `/accomodation/serena-safari-lodge`
+  </Step>
+  <Step title="View Complete Information">
+    Detail page displays:
+    - Property name
+    - Location
+    - Category
+    - Full description
+    - Rate information
+    - All 4 images
+  </Step>
+  <Step title="Booking Options">
+    Contact or booking information from description field
+  </Step>
+</Steps>
+
+### What's Displayed
+
+<Tabs>
+  <Tab title="Property Details">
+    **Name & Location**
+    - Full accommodation name
+    - Specific location (city, region, or proximity to attractions)
+    
+    **Category**
+    - Type of accommodation
+    - Helps set expectations for style and amenities
+  </Tab>
+  <Tab title="Description">
+    **Comprehensive Information** (from `description` field):
+    - Property overview
+    - Room types and features
+    - Amenities (pool, spa, restaurant, etc.)
+    - Activities available
+    - Unique selling points
+    - Nearby attractions
+    - Target guest profile
+  </Tab>
+  <Tab title="Rates">
+    **Pricing Information** (from `rates` field):
+    - Per night rates
+    - Per person rates
+    - Seasonal pricing
+    - Package options
+    - Special offers
+    
+    <Note>
+      Rates field is flexible string format to accommodate various pricing structures
+    </Note>
+  </Tab>
+  <Tab title="Visual Gallery">
+    **4 Required Images:**
+    - Exterior/entrance view
+    - Room/accommodation interior
+    - Facilities (restaurant, pool, lounge)
+    - Surroundings/views
+    
+    Stored in Laravel public storage (`storage/images`)
+  </Tab>
+</Tabs>
+
+## Filtering by Category
+
+**Route:** `/accomodation/category/{category}`
+
+**Controller:** `AccomodationController::category($category)`
+
+**How It Works:**
+
+<Steps>
+  <Step title="Select Category">
+    Click category filter or navigate to category URL
+    
+    Examples:
+    - `/accomodation/category/Luxury Lodges`
+    - `/accomodation/category/Beach Resorts`
+    - `/accomodation/category/Tented Camps`
+  </Step>
+  <Step title="View Filtered Results">
+    All accommodations in that category are displayed
+  </Step>
+  <Step title="Compare Options">
+    Review rates, locations, and descriptions within category
+  </Step>
+</Steps>
+
+<Tip>
+  Category filtering helps narrow options based on your accommodation style preference and budget.
+</Tip>
+
+## Accommodation Model
+
+### Fillable Fields
+
+From `app/Models/Accomodation.php`:
+
+```php
+protected $fillable = [
+    "name", 
+    "location", 
+    "description", 
+    "category", 
+    "rates"
+];
+```
+
+**Why These Fields Are Fillable:**
+- Allows mass assignment during creation/update
+- Core fields that admins need to set
+- Security: Other fields (user_id, published) controlled separately
+
+### Slug Generation
+
+The `slug` field provides:
+- Unique URL-friendly identifiers
+- SEO benefits
+- Clean, readable URLs
+
+**Example:**
+- Name: "Serena Safari Lodge Masai Mara"
+- Slug: `serena-safari-lodge-masai-mara`
+- URL: `/accomodation/serena-safari-lodge-masai-mara`
+
+<Warning>
+  Slugs must be unique (unique constraint in database). System prevents duplicate slugs.
+</Warning>
+
+## Admin Management Routes
+
+Authenticated admins can manage accommodations:
+
+### All Management Routes
+
+<Tabs>
+  <Tab title="View All">
+    **Admin View:**
+    - Route: `/all-accomodations`
+    - Controller: `AccomodationController::all()`
+    - Middleware: `auth`, `verified`
+    - Shows all accommodations including unpublished
+  </Tab>
+  <Tab title="Create">
+    **New Accommodation:**
+    - Form: `/accomodation/new` (GET)
+    - Submit: `/accomodation/create` (POST)
+    - Middleware: `auth`, `verified`
+    - Requires: name, location, description, category, rates, 4 images
+  </Tab>
+  <Tab title="Edit">
+    **Update Accommodation:**
+    - Form: `/accomodation/edit/{id}` (GET)
+    - Update: `/accomodation/update/{id}` (PUT)
+    - Middleware: `auth`, `verified`
+  </Tab>
+  <Tab title="Publish">
+    **Toggle Status:**
+    - Route: `/accomodation/publish/{id}` (PUT)
+    - Toggles `published` field between 0 and 1
+    - Middleware: `auth`, `verified`
+  </Tab>
+  <Tab title="Delete">
+    **Remove:**
+    - Route: `/accomodation/delete/{id}` (DELETE)
+    - Permanently deletes accommodation
+    - Middleware: `auth`, `verified`
+  </Tab>
+</Tabs>
+
+<Info>
+  All admin routes require authentication and email verification for security.
+</Info>
+
+## Publishing Workflow
+
+<Steps>
+  <Step title="Create Entry">
+    Admin creates accommodation with all details and 4 images
+  </Step>
+  <Step title="Draft Status">
+    Initially created with `published = 0` (not visible to public)
+  </Step>
+  <Step title="Review">
+    Admin reviews information, images, rates for accuracy
+  </Step>
+  <Step title="Publish">
+    Admin sets `published = 1` via publish route
+  </Step>
+  <Step title="Live">
+    Accommodation now visible on `/accomodations` page and homepage
+  </Step>
+</Steps>
+
+**Unpublishing:**
+- Doesn't delete the accommodation
+- Hides from public view
+- Allows edits before republishing
+- Useful for seasonal properties or during renovations
+
+## Accommodation vs Tour Accommodations
+
+### Key Differences
+
+<AccordionGroup>
+  <Accordion title="Standalone Accommodations">
+    **Route:** `/accomodations`
+    
+    **Purpose:**
+    - Book accommodation only
+    - No transport or full package included
+    - Direct hotel/lodge booking
+    - Flexible for independent travelers
+    
+    **Model:** `Accomodation`
+    
+    **Fields:** name, location, description, category, rates, 4 images
+  </Accordion>
+  <Accordion title="Tour Accommodations">
+    **Included in:** Tours/Safaris packages
+    
+    **Purpose:**
+    - Part of complete safari package
+    - Includes transport, meals, activities
+    - Hotel specified in tour's `hotel` field
+    - Package pricing
+    
+    **Model:** `Tours`
+    
+    **Fields:** hotel field contains accommodation name as part of tour
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  **Choose Standalone Accommodations if:**
+  - You want accommodation only
+  - You're arranging your own transport
+  - You prefer flexible, independent travel
+  
+  **Choose Tour Package if:**
+  - You want all-inclusive safari experience
+  - You need transport and guide services
+  - You prefer organized itineraries
+</Tip>
+
+## Location Information
+
+**Location Field** contains:
+
+<CardGroup cols={2}>
+  <Card title="National Parks" icon="tree">
+    Accommodations within or near parks (e.g., "Masai Mara National Reserve")
+  </Card>
+  <Card title="Coastal Areas" icon="water">
+    Beach locations (e.g., "Diani Beach", "Watamu")
+  </Card>
+  <Card title="Cities" icon="city">
+    Urban locations (e.g., "Nairobi CBD", "Mombasa")
+  </Card>
+  <Card title="Regions" icon="map-location-dot">
+    Regional descriptions (e.g., "Rift Valley", "Coastal Kenya")
+  </Card>
+</CardGroup>
+
+**Location Benefits:**
+- Helps travelers choose based on destination
+- Enables location-based filtering (manual)
+- Provides context for rates and amenities
+
+## Rate Information
+
+**Rates Field** is flexible and can include:
+
+<Tabs>
+  <Tab title="Pricing Formats">
+    - **Per Night:** "$150 per night"
+    - **Per Person:** "$75 per person per night"
+    - **Range:** "$100-$200 depending on season"
+    - **Package:** "$500 for 3 nights"
+    - **Starting From:** "From $80 per night"
+  </Tab>
+  <Tab title="Seasonal Rates">
+    - High season rates
+    - Low season rates
+    - Peak season (migration, holidays)
+    - Special event pricing
+  </Tab>
+  <Tab title="Room Types">
+    - Standard room rates
+    - Suite/luxury room rates
+    - Family room rates
+    - Different accommodation types within property
+  </Tab>
+  <Tab title="Additional Info">
+    - Children rates/policies
+    - Group discounts
+    - Long-stay discounts
+    - What's included in rate
+  </Tab>
+</Tabs>
+
+<Note>
+  The flexible text format for rates allows accommodating various pricing structures and providing comprehensive rate information.
+</Note>
+
+## Images & Visual Content
+
+### Image Requirements
+
+**Four Required Images:**
+
+<Steps>
+  <Step title="Image 1 - Exterior">
+    Main property view, entrance, or iconic exterior shot
+  </Step>
+  <Step title="Image 2 - Rooms">
+    Interior room view showing accommodation quality
+  </Step>
+  <Step title="Image 3 - Facilities">
+    Key amenities like restaurant, pool, spa, lounge
+  </Step>
+  <Step title="Image 4 - Surroundings">
+    Views, grounds, location context, or additional facilities
+  </Step>
+</Steps>
+
+**Technical Details:**
+- Storage: Laravel public storage (`storage/images`)
+- Fields: `image`, `image2`, `image3`, `image4`
+- All four images required (validation enforced)
+
+<Warning>
+  Unlike tours (which support up to 6 images), accommodations require exactly 4 images.
+</Warning>
+
+## Description Best Practices
+
+The `description` field should include:
+
+<CardGroup cols={2}>
+  <Card title="Overview" icon="info-circle">
+    General introduction to the property and its unique character
+  </Card>
+  <Card title="Rooms" icon="door-open">
+    Types of rooms, capacities, and key room features
+  </Card>
+  <Card title="Amenities" icon="sparkles">
+    Facilities like pool, spa, restaurant, WiFi, gym
+  </Card>
+  <Card title="Activities" icon="person-hiking">
+    On-site activities or nearby attractions and experiences
+  </Card>
+  <Card title="Dining" icon="utensils">
+    Restaurant options, cuisine types, meal plans
+  </Card>
+  <Card title="Target Guests" icon="users">
+    Who the property suits (families, couples, solo travelers)
+  </Card>
+</CardGroup>
+
+## Integration with Platform
+
+### Homepage Presence
+
+Accommodations are featured on the homepage:
+
+```php
+$accomodations = Accomodation::orderBy('id','desc')->get();
+```
+
+**Benefits:**
+- Immediate visibility for new properties
+- Encourages standalone accommodation bookings
+- Showcases variety of options available
+
+### Navigation
+
+Accommodations accessible via:
+- Main navigation to `/accomodations`
+- Homepage accommodation section
+- Direct slug URLs `/accomodation/{slug}`
+- Category filter pages
+
+## Comparison with Other Features
+
+<Tabs>
+  <Tab title="vs Tours">
+    **Accommodations:**
+    - Standalone properties
+    - Accommodation only
+    - Flexible booking
+    - 4 required images
+    - `rates` field
+    
+    **Tours:**
+    - Complete packages
+    - Includes transport, meals, activities
+    - Fixed itineraries
+    - Up to 6 images
+    - `per_person_sharing` and `single_room` fields
+  </Tab>
+  <Tab title="vs Events">
+    **Accommodations:**
+    - Places to stay
+    - No specific dates
+    - Rates-based
+    - Location-focused
+    
+    **Events:**
+    - Time-specific activities
+    - Scheduled dates/times
+    - Price per ticket
+    - Activity-focused
+  </Tab>
+  <Tab title="vs Services">
+    **Accommodations:**
+    - Lodging facilities
+    - Multi-day stays
+    - Full property descriptions
+    
+    **Services:**
+    - Individual services
+    - One-time or short-term
+    - Service-specific details
+  </Tab>
+</Tabs>
+
+## Booking Process
+
+<Info>
+  Accommodation booking details are typically included in the `description` field or handled through external booking systems. Contact information provided in description.
+</Info>
+
+**Typical Flow:**
+
+<Steps>
+  <Step title="Browse">
+    View all accommodations or filter by category
+  </Step>
+  <Step title="Review Details">
+    Click on accommodation to view full details via slug URL
+  </Step>
+  <Step title="Check Rates">
+    Review rates field for pricing information
+  </Step>
+  <Step title="Contact/Book">
+    Use contact information in description or external booking links
+  </Step>
+</Steps>
+
+<Tip>
+  For integrated safari packages with accommodation included, use the Tours/Safaris booking system instead.
+</Tip>
+
+## Related Features
+
+<Card title="Tours & Safaris" icon="binoculars" href="/features/tours-safaris">
+  Explore complete safari packages with accommodation, transport, and activities included
+</Card>
+
+<Note>
+  Accommodations feature provides flexibility for travelers who want to book lodging separately from activities and transport.
+</Note>

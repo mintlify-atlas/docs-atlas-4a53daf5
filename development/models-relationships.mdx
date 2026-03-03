@@ -1,0 +1,696 @@
+---
+title: Models & Relationships
+description: Eloquent models, relationships, and fillable fields in Safaris Web
+---
+
+## Overview
+
+Safaris Web uses Laravel's Eloquent ORM for database interactions. All models are located in `~/workspace/source/app/Models/`.
+
+## Model List
+
+The application contains 12 Eloquent models:
+
+- User
+- Tours
+- Booking
+- Category
+- Blog
+- Enquiry
+- Event
+- Product
+- Service
+- Accomodation
+- Video
+- Highlight
+
+## User Model
+
+**Location**: `~/workspace/source/app/Models/User.php`
+
+```php
+class User extends Authenticatable implements MustVerifyEmail
+{
+    use HasApiTokens, HasFactory, Notifiable;
+
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
+
+    // Relationships
+    public function bookings()
+    {
+        return $this->hasMany('App\Booking');
+    }
+}
+```
+
+### Key Features
+
+- **Implements `MustVerifyEmail`**: Requires email verification
+- **HasApiTokens**: Supports Laravel Sanctum authentication
+- **Notifiable**: Can receive notifications
+- **Hidden Fields**: Password and tokens never serialized
+- **Casts**: Email verification timestamp as datetime
+
+### Relationships
+
+- **One-to-Many**: User has many Bookings
+
+### Usage Example
+
+```php
+// Get all bookings for authenticated user
+$bookings = Auth::user()->bookings;
+
+// Check if user is admin
+if (Auth::user()->isAdmin) {
+    // Admin functionality
+}
+```
+
+## Tours Model
+
+**Location**: `~/workspace/source/app/Models/Tours.php`
+
+```php
+class Tours extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'hotel',
+        'transport',
+        'image',
+        'per_person_sharing',
+        'single_room',
+        'meals'
+    ];
+}
+```
+
+### Database Table Fields
+
+Based on migration (`2019_05_01_071637_create_tours_table.php`):
+
+- `id` - Primary key
+- `hotel` - Hotel/accommodation name
+- `transport` - Transportation details
+- `location` - Tour location
+- `category` - Main category
+- `sub_category` - Subcategory
+- `image`, `image1`, `image2`, `image3`, `image4`, `image5`, `image6` - Multiple images
+- `per_person_sharing` - Price for shared accommodation
+- `single_room` - Price for single room
+- `meals` - Meal plan details
+- `additional_info` - Optional extra information
+- `user_id` - Creator (admin) ID
+- `published` - Publication status (0=draft, 1=published)
+- `created_at`, `updated_at` - Timestamps
+
+### Usage Examples
+
+<CodeGroup>
+
+```php Creating a Tour
+$tour = new Tours();
+$tour->hotel = 'Serengeti Safari Lodge';
+$tour->transport = 'Land Cruiser 4x4';
+$tour->location = 'Serengeti National Park';
+$tour->category = 'Wildlife Safari';
+$tour->sub_category = 'Big Five Safari';
+$tour->per_person_sharing = '$1,500';
+$tour->single_room = '$2,000';
+$tour->meals = 'Full Board';
+$tour->user_id = Auth::id();
+$tour->save();
+```
+
+```php Querying Tours
+// Get all published tours
+$tours = Tours::where('published', 1)->get();
+
+// Get tours by category
+$safaris = Tours::where('category', 'Safari Tours')
+    ->where('published', 1)
+    ->paginate(20);
+
+// Random tours for homepage
+$featured = Tours::inRandomOrder()->limit(6)->get();
+```
+
+```php Publishing a Tour
+$tour = Tours::find($id);
+$tour->published = 1;
+$tour->update();
+```
+
+</CodeGroup>
+
+## Booking Model
+
+**Location**: `~/workspace/source/app/Models/Booking.php`
+
+```php
+class Booking extends Model
+{
+    use HasFactory;
+
+    protected $table = 'tour_bookings';
+
+    protected $fillable = [
+        'first_name',
+        'last_name',
+        'email',
+        'phone_number',
+        'adults',
+        'kids'
+    ];
+}
+```
+
+### Custom Table Name
+
+Note: Model is named `Booking` but table is `tour_bookings` (explicitly defined).
+
+### Complete Fields
+
+From migration `2022_05_01_081632_create_tour_booking_table.php`:
+
+- `transaction_code` - Payment reference
+- `first_name`, `last_name` - Customer name
+- `email`, `phone_number` - Contact info
+- `country` - Customer country
+- `arrival_date` - Tour start date
+- `adults`, `kids` - Number of travelers
+- `destination` - Booked tour
+- `special_requirements` - Dietary/accessibility needs
+- `user_id` - Booking owner
+- `status` - Confirmation status (0=pending, 1=confirmed)
+
+### Usage Example
+
+```php
+// Get user's bookings
+$bookings = Booking::where('user_id', Auth::id())
+    ->latest()
+    ->paginate(10);
+
+// Confirm booking
+$booking = Booking::find($id);
+$booking->status = 1;
+$booking->update();
+```
+
+## Blog Model
+
+**Location**: `~/workspace/source/app/Models/Blog.php`
+
+```php
+class Blog extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'image',
+        'title',
+        'content'
+    ];
+}
+```
+
+### Complete Fields
+
+From migration `2022_05_13_174630_create_blogs_table.php` + `2023_02_19_082200`:
+
+- `title` - Blog post title
+- `content` - Post content (HTML supported)
+- `image`, `image2`, `image3` - Featured images
+- `user_id` - Author ID
+- `published` - Status (0=draft, 1=published)
+
+### Usage Example
+
+```php
+// Latest published blogs
+$blogs = Blog::where('published', 1)
+    ->latest()
+    ->limit(6)
+    ->get();
+
+// Single blog post
+$blog = Blog::findOrFail($id);
+```
+
+## Category Model
+
+**Location**: `~/workspace/source/app/Models/Category.php`
+
+```php
+class Category extends Model
+{
+    use HasFactory;
+
+    protected $table = "categories";
+}
+```
+
+### Fields
+
+From migration `2014_10_12_000001_create_categories_table.php`:
+
+- `name` - Category name
+- `sub_name` - Subcategory name
+- `image` - Category image
+- `desc` - Description (nullable)
+
+### Usage Example
+
+```php
+// Get all categories for navigation
+$categories = Category::all();
+
+// Categories are referenced in tours, products, etc.
+$tours = Tours::where('category', $category->name)->get();
+```
+
+## Enquiry Model
+
+**Location**: `~/workspace/source/app/Models/Enquiry.php`
+
+```php
+class Enquiry extends Model
+{
+    protected $table = 'enquiries';
+
+    protected $fillable = [
+        'full_name',
+        'email_address',
+        'phone_number',
+        'destinations',
+        'nationality',
+        'travel_date'
+    ];
+    
+    use HasFactory;
+}
+```
+
+### Complete Fields
+
+From migration `2022_05_05_103428_create_enquiries_table.php`:
+
+- Contact: `full_name`, `email_address`, `phone_number`
+- Trip Details: `destinations`, `nationality`, `travel_date`
+- Group: `adults`, `kids`
+- Budget Level: `budget`, `medium`, `luxury`
+- `additional_info` - Special requests
+
+### Usage Example
+
+```php
+// Contact form submission
+$enquiry = Enquiry::create([
+    'full_name' => $request->full_name,
+    'email_address' => $request->email,
+    'phone_number' => $request->phone,
+    'destinations' => $request->destinations,
+    'nationality' => $request->nationality,
+    'travel_date' => $request->date,
+]);
+```
+
+## Event Model
+
+**Location**: `~/workspace/source/app/Models/Event.php`
+
+```php
+class Event extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        "name",
+        "location",
+        "description",
+        "category",
+        "when",
+        "starts",
+        "ends"
+    ];
+}
+```
+
+### Complete Fields
+
+From migration `2023_01_16_102852_create_events_table.php`:
+
+- `name`, `slug` - Event title and URL
+- `category`, `location` - Classification and venue
+- `description` - Full details
+- `when` - Time of day (e.g., "Morning", "Evening")
+- `starts`, `ends` - Date range
+- `image`, `image2` - Event photos
+- `user_id`, `published` - Ownership and status
+
+## Product Model
+
+**Location**: `~/workspace/source/app/Models/Product.php`
+
+```php
+class Product extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        "name",
+        "location",
+        "description",
+        "category"
+    ];
+}
+```
+
+### Complete Fields
+
+From migration `2023_01_14_060237_create_products_table.php`:
+
+- `name`, `slug` - Product name and URL
+- `category`, `location` - Classification and availability
+- `description` - Full description
+- `price`, `quantity_available` - Inventory
+- `image`, `image2`, `image3` - Product photos
+- `user_id`, `published` - Ownership and status
+
+### Usage Example
+
+```php
+// Products by category
+$products = Product::where('category', $category)
+    ->where('published', 1)
+    ->where('quantity_available', '>', 0)
+    ->get();
+
+// Find by slug
+$product = Product::where('slug', $slug)->firstOrFail();
+```
+
+## Service Model
+
+**Location**: `~/workspace/source/app/Models/Service.php`
+
+```php
+class Service extends Model
+{
+    use HasFactory;
+}
+```
+
+### Complete Fields
+
+From migration `2023_01_14_060259_create_services_table.php`:
+
+- `name`, `slug` - Service name and URL
+- `category`, `location` - Classification
+- `description` - Service details
+- `image`, `image2` - Service photos
+- `user_id`, `published` - Ownership and status
+
+<Note>
+The Service model has no `$fillable` array defined. Consider adding fillable fields for mass assignment.
+</Note>
+
+## Accomodation Model
+
+**Location**: `~/workspace/source/app/Models/Accomodation.php`
+
+```php
+class Accomodation extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        "name",
+        "location",
+        "description",
+        "category",
+        "rates"
+    ];
+}
+```
+
+### Complete Fields
+
+From migration `2023_01_19_005535_create_accomodations_table.php`:
+
+- `name`, `slug` - Accommodation name and URL
+- `category` - Type (Hotel, Lodge, Camp, etc.)
+- `location` - Geographic location
+- `rates` - Pricing information
+- `description` - Full details
+- `image`, `image2`, `image3`, `image4`, `image5`, `image6` - Multiple photos
+- `user_id`, `published` - Ownership and status
+
+## Video Model
+
+**Location**: `~/workspace/source/app/Models/Video.php`
+
+```php
+class Video extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'url'
+    ];
+}
+```
+
+### Purpose
+
+Stores YouTube or Vimeo URLs for video gallery.
+
+### Usage Example
+
+```php
+// Add video
+Video::create(['url' => 'https://www.youtube.com/watch?v=...']);
+
+// Get all videos
+$videos = Video::all();
+```
+
+## Highlight Model
+
+**Location**: `~/workspace/source/app/Models/Highlight.php`
+
+```php
+class Highlight extends Model
+{
+    use HasFactory;
+}
+```
+
+### Fields
+
+From migration `2022_05_13_213354_create_highlights_table.php`:
+
+- `title` - Highlight heading
+- `description` - Content text
+
+### Purpose
+
+Displays featured content sections on homepage.
+
+## Model Relationships
+
+While most relationships are implicit through foreign keys, here are the defined relationships:
+
+### Explicit Relationships
+
+```php
+// User Model (app/Models/User.php:45-48)
+public function bookings()
+{
+    return $this->hasMany('App\Booking');
+}
+```
+
+### Implicit Relationships
+
+Based on database schema:
+
+- **User → Tours**: `user_id` in tours table
+- **User → Blogs**: `user_id` in blogs table
+- **User → Products**: `user_id` in products table
+- **User → Services**: `user_id` in services table
+- **User → Events**: `user_id` in events table
+- **User → Accommodations**: `user_id` in accomodations table
+
+### Defining Missing Relationships
+
+To improve code clarity, consider adding these to respective models:
+
+```php
+// In Tours model
+public function creator()
+{
+    return $this->belongsTo(User::class, 'user_id');
+}
+
+// In User model
+public function tours()
+{
+    return $this->hasMany(Tours::class);
+}
+
+public function blogs()
+{
+    return $this->hasMany(Blog::class);
+}
+```
+
+## Mass Assignment Protection
+
+### Fillable vs Guarded
+
+Safaris Web uses the `$fillable` whitelist approach:
+
+```php
+// Only these fields can be mass-assigned
+protected $fillable = ['name', 'email', 'password'];
+```
+
+<Warning>
+**Security Note**: Always define `$fillable` or `$guarded` to prevent mass assignment vulnerabilities.
+</Warning>
+
+### Missing Fillable Definitions
+
+These models need complete `$fillable` arrays:
+
+- **Service**: No fillable defined
+- **Highlight**: No fillable defined
+- **Tours**: Missing many fields (location, category, etc.)
+- **Category**: No fillable defined
+
+## Common Eloquent Operations
+
+### Querying
+
+<CodeGroup>
+
+```php Find by ID
+$tour = Tours::find($id);
+$tour = Tours::findOrFail($id); // Throws 404 if not found
+```
+
+```php Where Clauses
+$tours = Tours::where('published', 1)->get();
+$tours = Tours::where('category', 'Safari')
+    ->where('published', 1)
+    ->get();
+```
+
+```php Latest/Oldest
+$blogs = Blog::latest()->get(); // Order by created_at DESC
+$blogs = Blog::oldest()->get();
+```
+
+```php Pagination
+$tours = Tours::paginate(20);
+$tours = Tours::where('published', 1)->paginate(15);
+```
+
+</CodeGroup>
+
+### Creating Records
+
+<CodeGroup>
+
+```php Create Method
+$tour = Tours::create([
+    'hotel' => 'Safari Lodge',
+    'transport' => 'Land Cruiser',
+    // ... other fields
+]);
+```
+
+```php New Instance
+$tour = new Tours();
+$tour->hotel = 'Safari Lodge';
+$tour->transport = 'Land Cruiser';
+$tour->save();
+```
+
+</CodeGroup>
+
+### Updating Records
+
+<CodeGroup>
+
+```php Update Method
+$tour = Tours::find($id);
+$tour->update([
+    'published' => 1,
+    'hotel' => 'Updated Name'
+]);
+```
+
+```php Save Method
+$tour = Tours::find($id);
+$tour->published = 1;
+$tour->save();
+```
+
+</CodeGroup>
+
+### Deleting Records
+
+```php
+$tour = Tours::find($id);
+$tour->delete();
+
+// Or direct delete
+Tours::destroy($id);
+```
+
+## Model Events
+
+You can hook into model lifecycle events:
+
+```php
+class Tours extends Model
+{
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($tour) {
+            // Auto-set user_id
+            $tour->user_id = auth()->id();
+        });
+        
+        static::updating(function ($tour) {
+            // Log changes
+        });
+    }
+}
+```
+
+## Next Steps
+
+- Learn about [Routes & Controllers](/development/routes-controllers)
+- Explore [Adding Features](/development/adding-features)
+- Understand [Blade Templates](/development/blade-templates)

@@ -1,0 +1,697 @@
+---
+title: 'Publishing Workflow'
+description: 'Complete guide to publishing, unpublishing, and managing content visibility in Safaris Web'
+---
+
+## Overview
+
+Safaris Web uses a simple publish/unpublish system to control the visibility of tours, blogs, and other content. Published content is visible to the public, while unpublished (draft) content is only accessible in the admin panel.
+
+<Note>
+  The publishing system uses a toggle approach - clicking publish on a published item will unpublish it, and vice versa.
+</Note>
+
+## Content Types with Publishing
+
+The following content types support publishing/unpublishing:
+
+| Content Type | Publish Field | Publish Route | Method | Values |
+|-------------|---------------|---------------|--------|--------|
+| **Tours** | `published` | `/addtour/publish/{id}` | PUT | 0 = draft, 1 = published |
+| **Blogs** | `published` | `/blogs/publish/{id}` | PUT | 0 = draft, 1 = published |
+| **Products** | `published` | `/product/publish/{id}` | PUT | 0 = draft, 1 = published |
+| **Services** | `published` | `/service/publish/{id}` | PUT | 0 = draft, 1 = published |
+| **Events** | `published` | `/event/publish/{id}` | PUT | 0 = draft, 1 = published |
+| **Accommodations** | `published` | `/accomodation/publish/{id}` | PUT | 0 = draft, 1 = published |
+
+<Note>
+  **Videos and Categories** do not have a published field - they are always visible once created.
+</Note>
+
+## Publishing States
+
+All content with publishing capability uses the same field structure:
+
+### Draft State (Unpublished)
+
+```php
+$content->published = 0;
+```
+
+**Characteristics:**
+- Not visible on public-facing pages
+- Only accessible in admin panel
+- Can be edited and previewed
+- Useful for preparing content before launch
+- Does not appear in search results or listings
+
+### Published State
+
+```php
+$content->published = 1;
+```
+
+**Characteristics:**
+- Visible to all website visitors
+- Appears in public listings and searches
+- Can still be edited by admins
+- Included in RSS feeds and sitemaps
+- Searchable and indexable
+
+## Publishing Tours
+
+### Publish/Unpublish Tour
+
+**Route:** `/addtour/publish/{id}`  
+**Method:** PUT  
+**Controller Method:** `ToursController@publish($id)`  
+**Middleware:** `['auth', 'verified']`  
+*Source: ToursController.php:260-273*
+
+```php
+public function publish($id)
+{
+    $tour = Tours::find($id);
+    
+    if ($tour->published == 0) {
+        $tour->published = 1;  // Publish
+        $tour->update();
+    } else {
+        $tour->published = 0;  // Unpublish
+        $tour->update();
+    }
+    
+    return redirect()->route('tours');
+}
+```
+
+**Usage:**
+
+<Tabs>
+  <Tab title="Publish a Draft Tour">
+    <Steps>
+      <Step title="Create Tour">
+        Create a new tour - it starts as draft (`published = 0`)
+      </Step>
+      
+      <Step title="Review Content">
+        Preview the tour, check all details, images, and pricing
+      </Step>
+      
+      <Step title="Click Publish">
+        In the tours list, click the publish button for the tour
+      </Step>
+      
+      <Step title="Tour Goes Live">
+        Tour becomes visible on `/safaris` and category pages
+      </Step>
+    </Steps>
+  </Tab>
+  
+  <Tab title="Unpublish a Tour">
+    <Steps>
+      <Step title="Locate Published Tour">
+        Find the tour in the tours list (shows as published)
+      </Step>
+      
+      <Step title="Click Unpublish">
+        Click the publish toggle button
+      </Step>
+      
+      <Step title="Tour Hidden">
+        Tour is no longer visible on public pages
+      </Step>
+      
+      <Step title="Edit if Needed">
+        Make changes while unpublished, then republish
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+### Where Published Tours Appear
+
+Published tours (`published = 1`) appear on:
+
+1. **Safari Tours Page** - `/safaris`
+   ```php
+   $safaris = Tours::inRandomOrder()->paginate(20);
+   ```
+   *Note: This query doesn't filter by published status - it shows all tours*
+
+2. **Tours by Category** - `/tours/{category}`
+   
+3. **Tours by Subcategory** - `/tours/categories/{sub_category}`
+
+<Warning>
+  **Implementation Issue:** The public safari listing doesn't filter by `published` status. All tours are shown, regardless of publication state. This should be fixed:
+  
+  ```php
+  // Current (shows all)
+  $safaris = Tours::inRandomOrder()->paginate(20);
+  
+  // Should be
+  $safaris = Tours::where('published', 1)->inRandomOrder()->paginate(20);
+  ```
+</Warning>
+
+## Publishing Blog Posts
+
+### Publish/Unpublish Blog
+
+**Route:** `/blogs/publish/{id}`  
+**Method:** PUT  
+**Controller Method:** `BlogController@publish($id)`  
+**Middleware:** `['auth', 'verified']`  
+*Source: BlogController.php:192-205*
+
+```php
+public function publish($id)
+{
+    $blog = Blog::find($id);
+    
+    if ($blog->published == 0) {
+        $blog->published = 1;  // Publish
+        $blog->update();
+    } else {
+        $blog->published = 0;  // Unpublish
+        $blog->update();
+    }
+    
+    return redirect()->route('blogs');
+}
+```
+
+**Usage:**
+
+<CodeGroup>
+```bash Publish Draft Blog
+# PUT request to publish blog with ID 5
+PUT /blogs/publish/5
+
+# If blog.published = 0, sets to 1
+# Blog becomes visible on /blogs
+```
+
+```bash Unpublish Blog
+# PUT request to unpublish blog with ID 5  
+PUT /blogs/publish/5
+
+# If blog.published = 1, sets to 0
+# Blog hidden from public view
+```
+</CodeGroup>
+
+### Where Published Blogs Appear
+
+Published blogs appear on:
+
+1. **Blog Index** - `/blogs`
+   ```php
+   $coverBlogs = Blog::latest()->paginate(6);
+   $blogs = Blog::latest()->limit(2)->get();
+   ```
+   *Note: Also doesn't filter by published status*
+
+2. **Blog Archive** - `/all-blogs`
+
+3. **Individual Blog Pages** - `/blogs/show/{id}`
+
+<Warning>
+  **Implementation Issue:** Blog listings don't filter by `published` status either. All blogs are shown publicly.
+  
+  ```php
+  // Should filter by published status
+  $coverBlogs = Blog::where('published', 1)->latest()->paginate(6);
+  ```
+</Warning>
+
+## Publishing Other Content Types
+
+The same toggle pattern is used for all publishable content:
+
+### Products
+
+**Route:** `/product/publish/{id}`  
+**Method:** PUT  
+**Middleware:** `['auth', 'verified']`
+
+```php
+Route::put("/product/publish/{id}", [ProductController::class, "publish"])
+    ->name("products.publish")
+    ->middleware(['auth', 'verified']);
+```
+*Source: web.php:155*
+
+### Services
+
+**Route:** `/service/publish/{id}`  
+**Method:** PUT  
+**Middleware:** `['auth', 'verified']`
+
+```php
+Route::put("/service/publish/{id}", [ServiceController::class, "publish"])
+    ->name("services.publish")
+    ->middleware(['auth', 'verified']);
+```
+*Source: web.php:167*
+
+### Events
+
+**Route:** `/event/publish/{id}`  
+**Method:** PUT  
+**Middleware:** `['auth', 'verified']`
+
+```php
+Route::put("/event/publish/{id}", [EventController::class, "publish"])
+    ->name("events.publish")
+    ->middleware(['auth', 'verified']);
+```
+*Source: web.php:180*
+
+### Accommodations
+
+**Route:** `/accomodation/publish/{id}`  
+**Method:** PUT  
+**Middleware:** `['auth', 'verified']`
+
+```php
+Route::put("/accomodation/publish/{id}", [AccomodationController::class, "publish"])
+    ->name("accomodations.publish")
+    ->middleware(['auth', 'verified']);
+```
+*Source: web.php:193*
+
+## Content Without Publishing
+
+### Videos
+
+Videos do not have a `published` field:
+
+**Model:**
+```php
+protected $fillable = ['url'];
+```
+*Source: Video.php:12-14*
+
+**Implication:** All videos are always visible on `/videos`
+
+**Workaround:** Delete videos to hide them, or add a `published` field
+
+### Categories
+
+Categories do not have a `published` field:
+
+**Model:**
+```php
+protected $table = "categories";
+// No fillable array defined
+```
+*Source: Category.php:12*
+
+**Implication:** All categories are always available for tour filtering
+
+**Workaround:** Delete unused categories, or add `active` field
+
+### Bookings
+
+Bookings use a different field - `status` instead of `published`:
+
+```php
+// Booking status
+$booking->status = 0;  // Pending
+$booking->status = 1;  // Confirmed
+```
+
+See [Managing Bookings](/admin/managing-bookings) for details.
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Content Review Process" icon="clipboard-check">
+    **Before Publishing:**
+    
+    1. **Content Quality**
+       - Proofread all text for errors
+       - Verify all facts and details
+       - Check formatting and layout
+       - Test all links
+    
+    2. **Images**
+       - Ensure all images load correctly
+       - Check image quality and resolution
+       - Verify images are properly optimized
+       - Confirm images are relevant
+    
+    3. **Pricing and Details**
+       - Verify pricing is accurate
+       - Ensure dates are correct
+       - Check availability
+       - Confirm contact information
+    
+    4. **SEO**
+       - Add relevant keywords
+       - Optimize titles and descriptions
+       - Check meta tags
+       - Verify URL structure
+  </Accordion>
+  
+  <Accordion title="Publishing Strategy" icon="calendar">
+    **Timing:**
+    - Publish new content during business hours
+    - Schedule posts for optimal engagement times
+    - Coordinate with marketing campaigns
+    - Consider seasonal relevance
+    
+    **Batch Publishing:**
+    - Create multiple pieces of content
+    - Review all as drafts
+    - Publish in coordinated batches
+    - Maintain consistent publishing schedule
+    
+    **Updates:**
+    - Unpublish before major edits
+    - Review changes before republishing
+    - Update timestamps if needed
+    - Notify subscribers of significant changes
+  </Accordion>
+  
+  <Accordion title="Draft Management" icon="file-alt">
+    **Use Drafts For:**
+    - Work-in-progress content
+    - Seasonal content (publish when relevant)
+    - Content awaiting approval
+    - Testing new formats
+    - Placeholder content
+    
+    **Draft Organization:**
+    - Use clear naming conventions
+    - Add notes in admin panel
+    - Set reminders for draft completion
+    - Regularly review and clean up old drafts
+    - Archive or delete abandoned drafts
+  </Accordion>
+  
+  <Accordion title="Unpublishing Content" icon="eye-slash">
+    **Reasons to Unpublish:**
+    - Content is outdated or incorrect
+    - Tour is temporarily unavailable
+    - Seasonal content out of season
+    - Major updates needed
+    - Legal or compliance issues
+    
+    **When Unpublishing:**
+    - Consider 301 redirects for SEO
+    - Update internal links
+    - Notify affected customers
+    - Add admin notes explaining why
+    - Schedule republication if temporary
+  </Accordion>
+</AccordionGroup>
+
+## Implementation Issues
+
+<Warning>
+  **Critical Issues with Current Implementation**
+</Warning>
+
+### Issue 1: Public Queries Don't Filter by Published Status
+
+**Problem:** Tours and blogs show all content, ignoring `published` field
+
+**Affected Code:**
+
+```php
+// ToursController@safaris (line 25)
+$safaris = Tours::inRandomOrder()->paginate(20);
+// Should be:
+$safaris = Tours::where('published', 1)->inRandomOrder()->paginate(20);
+
+// BlogController@index (line 24)
+$coverBlogs = Blog::latest()->paginate(6);
+// Should be:
+$coverBlogs = Blog::where('published', 1)->latest()->paginate(6);
+```
+
+**Impact:** Draft content is visible to public
+
+**Fix Required:**
+
+<Steps>
+  <Step title="Add Global Scope">
+    Create a scope for published content:
+    
+    ```php
+    // In Tours model
+    public function scopePublished($query)
+    {
+        return $query->where('published', 1);
+    }
+    
+    // Usage
+    $tours = Tours::published()->inRandomOrder()->paginate(20);
+    ```
+  </Step>
+  
+  <Step title="Update All Public Queries">
+    Find and update all public-facing queries:
+    
+    ```bash
+    # Search for queries that should filter
+    grep -r "Tours::" app/Http/Controllers/
+    grep -r "Blog::" app/Http/Controllers/
+    ```
+  </Step>
+  
+  <Step title="Test Thoroughly">
+    - Create draft content
+    - Verify it doesn't show on public pages
+    - Publish and verify it appears
+    - Check all listing pages
+  </Step>
+</Steps>
+
+### Issue 2: No Default Value for Published Field
+
+**Problem:** New content might not have `published` set
+
+**Solution:** Set default in migration and model:
+
+```php
+// Migration
+$table->boolean('published')->default(0);
+
+// Model
+protected $attributes = [
+    'published' => 0,
+];
+```
+
+### Issue 3: No Publish Date Tracking
+
+**Problem:** Can't track when content was published
+
+**Solution:** Add `published_at` timestamp:
+
+```php
+// Migration
+$table->timestamp('published_at')->nullable();
+
+// In publish method
+if ($content->published == 0) {
+    $content->published = 1;
+    $content->published_at = now();
+} else {
+    $content->published = 0;
+    $content->published_at = null;
+}
+```
+
+### Issue 4: No Bulk Publishing
+
+**Problem:** Must publish items one at a time
+
+**Solution:** Add bulk actions:
+
+```php
+public function bulkPublish(Request $request)
+{
+    $ids = $request->input('ids', []);
+    Tours::whereIn('id', $ids)->update(['published' => 1]);
+    
+    return redirect()->back()
+        ->with('success', count($ids) . ' tours published');
+}
+```
+
+## Advanced Publishing Features
+
+### Scheduled Publishing
+
+Currently not supported, but can be implemented:
+
+```php
+// Migration
+$table->timestamp('publish_at')->nullable();
+$table->timestamp('unpublish_at')->nullable();
+
+// Scheduled command
+php artisan make:command PublishScheduledContent
+
+// In command
+public function handle()
+{
+    // Publish scheduled content
+    Tours::where('published', 0)
+        ->where('publish_at', '<=', now())
+        ->update(['published' => 1]);
+    
+    // Unpublish expired content
+    Tours::where('published', 1)
+        ->where('unpublish_at', '<=', now())
+        ->update(['published' => 0]);
+}
+
+// In Kernel.php
+$schedule->command('content:publish')->hourly();
+```
+
+### Publishing Workflow with Approval
+
+For multi-user systems:
+
+```php
+// Migration
+$table->enum('status', ['draft', 'pending', 'approved', 'published'])
+      ->default('draft');
+$table->foreignId('approved_by')->nullable()->constrained('users');
+$table->timestamp('approved_at')->nullable();
+
+// Workflow
+1. Author creates content (status = 'draft')
+2. Author submits for approval (status = 'pending')
+3. Editor reviews and approves (status = 'approved')
+4. Editor or author publishes (published = 1, status = 'published')
+```
+
+### Content Versioning
+
+Track changes to published content:
+
+```php
+// Create versions table
+Schema::create('content_versions', function (Blueprint $table) {
+    $table->id();
+    $table->morphs('versionable');
+    $table->json('data');
+    $table->foreignId('user_id')->constrained();
+    $table->timestamps();
+});
+
+// Save version before update
+$tour->versions()->create([
+    'data' => $tour->toArray(),
+    'user_id' => Auth::id(),
+]);
+```
+
+## Testing Publishing Workflow
+
+<Steps>
+  <Step title="Create Test Content">
+    Create a new tour or blog post as draft
+  </Step>
+  
+  <Step title="Verify Draft State">
+    - Check it appears in admin list
+    - Verify `published = 0` in database
+    - Confirm it's NOT visible on public pages
+  </Step>
+  
+  <Step title="Publish Content">
+    Click publish button and verify:
+    - Status changes to published
+    - `published = 1` in database
+    - Content appears on public pages
+  </Step>
+  
+  <Step title="Unpublish Content">
+    Click unpublish button and verify:
+    - Status changes to draft
+    - `published = 0` in database
+    - Content hidden from public pages
+  </Step>
+  
+  <Step title="Test Edge Cases">
+    - Try publishing non-existent content
+    - Test permission restrictions
+    - Verify redirect after publish/unpublish
+    - Check for JavaScript errors
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Published Content Not Appearing" icon="eye-slash">
+    **Possible causes:**
+    1. Public query doesn't filter by `published` status
+    2. Cache not cleared after publishing
+    3. Published field not set correctly
+    4. Content filtered out by other criteria
+    
+    **Solutions:**
+    - Add `where('published', 1)` to public queries
+    - Clear cache: `php artisan cache:clear`
+    - Check database: `SELECT * FROM tours WHERE published = 1`
+    - Review other filters (category, date, etc.)
+  </Accordion>
+  
+  <Accordion title="Draft Content Visible to Public" icon="exclamation-triangle">
+    **Cause:** Public queries not filtering by published status
+    
+    **Urgent Fix Required:**
+    ```php
+    // Add to all public queries
+    ->where('published', 1)
+    ```
+    
+    **Temporary workaround:**
+    - Delete draft content instead of keeping unpublished
+    - Review all public pages for leaks
+  </Accordion>
+  
+  <Accordion title="Cannot Toggle Publish Status" icon="sync">
+    **Possible causes:**
+    - JavaScript not sending PUT request correctly
+    - CSRF token missing
+    - Middleware blocking request
+    - Database update failing
+    
+    **Solutions:**
+    - Check browser console for errors
+    - Verify form includes `@csrf` token
+    - Ensure user is authenticated and verified
+    - Check Laravel logs for errors
+  </Accordion>
+</AccordionGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Managing Tours" icon="map" href="/admin/managing-tours">
+    Learn about tour publishing
+  </Card>
+  
+  <Card title="Managing Blogs" icon="newspaper" href="/admin/managing-blogs">
+    Blog post publishing workflow
+  </Card>
+  
+  <Card title="User Roles" icon="shield" href="/admin/user-roles">
+    Understand publishing permissions
+  </Card>
+  
+  <Card title="Overview" icon="home" href="/admin/overview">
+    Return to admin dashboard
+  </Card>
+</CardGroup>

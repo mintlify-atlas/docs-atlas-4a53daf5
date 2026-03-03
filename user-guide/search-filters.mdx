@@ -1,0 +1,439 @@
+---
+title: Search & Filters
+description: Using search functionality and category filters to find your perfect safari
+---
+
+## Overview
+
+Safaris Web provides multiple search and filtering methods to help you find the perfect tour. This guide covers the search functionality, category filtering, subcategory navigation, and tips for effective tour discovery.
+
+## Search Functionality
+
+### Main Search Feature
+
+**Route:** `/search`
+
+**Controller:** `HomeController::search(Request $request)`
+
+**How It Works:**
+
+The search system uses Laravel's query builder to find tours matching your search term:
+
+```php
+Tours::where([
+    ['hotel', '!=', Null],
+    [function ($query) use ($request) {
+        if(($term = $request->item)) {
+            $query->orWhere('hotel', 'LIKE', '%' . $term . '%')->get();
+        }
+    }]
+])->orderBy("id", "desc")->paginate(10)
+```
+
+<Info>
+  Search primarily matches against the `hotel` field but can be expanded to include other tour attributes.
+</Info>
+
+### Using Search
+
+<Steps>
+  <Step title="Access Search">
+    Navigate to `/search` or use the search box on any page
+  </Step>
+  <Step title="Enter Search Term">
+    Type your search query in the `item` parameter. Examples:
+    - Hotel names: "Serena", "Sarova", "Mara Sopa"
+    - Destinations: "Masai Mara", "Amboseli"
+    - Location keywords
+  </Step>
+  <Step title="View Results">
+    Search returns paginated results (10 per page) ordered by most recent first
+  </Step>
+  <Step title="Refine Search">
+    Modify your search term to narrow or broaden results
+  </Step>
+</Steps>
+
+### Search Results Page
+
+The search results display:
+
+<CardGroup cols={2}>
+  <Card title="Matching Tours" icon="list">
+    Up to 10 tours per page matching your search criteria
+  </Card>
+  <Card title="Random Tours" icon="shuffle">
+    3 random tours for discovery (via `inRandomOrder()->limit(3)`)
+  </Card>
+  <Card title="Categories" icon="folder">
+    All available categories for filtering
+  </Card>
+  <Card title="Blog Posts" icon="newspaper">
+    2 latest blog posts for inspiration
+  </Card>
+</CardGroup>
+
+**Pagination:**
+- Index variable: `(request()->input('page', 1) - 1) * 5`
+- Results ordered by ID descending (newest first)
+
+<Tip>
+  Use specific terms for better results. "Serena Amboseli" will return more targeted results than just "lodge".
+</Tip>
+
+## Category Filtering
+
+### Understanding Categories
+
+Categories are managed in the `categories` table with structure:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | Integer | Unique identifier |
+| `category_name` | Text | Main category name |
+| `sub_category` | Text | First subcategory |
+| `sub_category1` | Text | Second subcategory |
+| `sub_category2` | Text | Third subcategory |
+| `created_at` | Timestamp | Creation date |
+| `updated_at` | Timestamp | Last update |
+
+<Info>
+  Each category can have up to 3 subcategories for granular filtering.
+</Info>
+
+### Main Category Filtering
+
+**Route:** `/tours/{category}`
+
+**Controller:** `HomeController::tours($category)`
+
+**How It Works:**
+
+<Steps>
+  <Step title="Select Category">
+    Click on any category link or navigate to `/tours/{category}` where `{category}` is the category name
+    
+    **Common categories:**
+    - Wildlife Safaris
+    - Beach Holidays
+    - Cultural Tours
+    - Adventure Tours
+    - Mountain Climbing
+    - Bird Watching
+    - Photography Safaris
+  </Step>
+  <Step title="View Filtered Tours">
+    All tours in that category are loaded:
+    ```php
+    Tours::where('category', $category)->get()
+    ```
+  </Step>
+  <Step title="See Category Info">
+    The latest tour in the category provides additional context:
+    ```php
+    Tours::where('category', $category)->latest()->first()
+    ```
+    This displays the category's `additional_info` field
+  </Step>
+</Steps>
+
+**Page Displays:**
+- All tours matching the selected category
+- Category-specific information from latest tour
+- All available categories for easy switching
+- 2 latest blog posts
+
+### Subcategory Filtering
+
+**Route:** `/tours/categories/{sub_category}`
+
+**Controller:** `HomeController::tour_cat($sub_category)`
+
+**More Specific Filtering:**
+
+<Steps>
+  <Step title="Navigate to Subcategory">
+    From a category page, click on subcategory links
+  </Step>
+  <Step title="View Subcategory Tours">
+    Tours filtered by subcategory:
+    ```php
+    Tours::where('sub_category', $sub_category)->get()
+    ```
+  </Step>
+  <Step title="Context Information">
+    Latest tour provides subcategory-specific info:
+    ```php
+    Tours::where('sub_category', $sub_category)->latest()->first()
+    ```
+  </Step>
+</Steps>
+
+**Example Hierarchy:**
+- **Category:** Wildlife Safaris
+  - **Subcategory:** Big Five Safaris
+  - **Subcategory:** Bird Watching Safaris
+  - **Subcategory:** Migration Safaris
+
+<Accordion title="Why Two Filtering Methods?">
+  **Category filtering** (`/tours/{category}`) provides broad groupings for general browsing.
+  
+  **Subcategory filtering** (`/tours/categories/{sub_category}`) offers specific niches within main categories for targeted searches.
+</Accordion>
+
+## Tour Data Searchable Fields
+
+Tours contain multiple fields that could match your search:
+
+<Tabs>
+  <Tab title="Currently Searchable">
+    **Hotel Field**
+    - Primary search field
+    - Contains accommodation name
+    - Examples: "Sarova Mara Game Camp", "Serena Lodge"
+    
+    **Search Implementation:**
+    ```php
+    $query->orWhere('hotel', 'LIKE', '%' . $term . '%')
+    ```
+  </Tab>
+  <Tab title="Filterable Fields">
+    **Category**
+    - Main category classification
+    - Route: `/tours/{category}`
+    
+    **Sub_category**
+    - Specific subcategory
+    - Route: `/tours/categories/{sub_category}`
+    
+    **Location**
+    - Geographic destination
+    - Not directly searchable but visible in results
+  </Tab>
+  <Tab title="Other Tour Data">
+    While not directly searchable, these fields are displayed in results:
+    - Transport type
+    - Meal plans
+    - Pricing (per person sharing, single room)
+    - Additional information
+    - Images (up to 6 per tour)
+  </Tab>
+</Tabs>
+
+<Tip>
+  When searching, focus on hotel/lodge names for best results. Use category filters for broader discovery.
+</Tip>
+
+## Advanced Filtering Strategies
+
+### Combination Approach
+
+<Steps>
+  <Step title="Start with Category">
+    Browse by main category to see all tours in your area of interest
+    
+    Example: `/tours/Wildlife Safaris`
+  </Step>
+  <Step title="Narrow with Subcategory">
+    Use subcategory to get more specific
+    
+    Example: `/tours/categories/Big Five Safaris`
+  </Step>
+  <Step title="Search Within Results">
+    If you know specific hotels or destinations, use search
+    
+    Example: Search "Masai Mara" within Big Five Safaris
+  </Step>
+  <Step title="Compare Options">
+    Review pricing, transport, and meal options in results
+  </Step>
+</Steps>
+
+### Filtering by Price (Manual)
+
+While there's no automatic price filter, you can:
+
+<CardGroup cols={2}>
+  <Card title="Browse Category" icon="filter">
+    Use category filtering to see all tours in your interest area
+  </Card>
+  <Card title="Compare Prices" icon="coins">
+    Manually compare `per_person_sharing` and `single_room` prices
+  </Card>
+  <Card title="Check Inclusions" icon="list-check">
+    Review `meals` and `transport` fields to understand value
+  </Card>
+  <Card title="Read Details" icon="circle-info">
+    Check `additional_info` for what's included/excluded
+  </Card>
+</CardGroup>
+
+### Filtering by Location
+
+**Approach:**
+
+1. **Use Search:** Enter location name in search (e.g., "Amboseli")
+2. **Check Tour Names:** Hotels often include location (e.g., "Amboseli Serena Safari Lodge")
+3. **Browse Categories:** Location-based categories (e.g., "Coastal Tours", "Rift Valley")
+4. **Read Descriptions:** Location field displayed in tour details
+
+<Info>
+  Tours store location in the `location` field (text type), which includes destination information.
+</Info>
+
+## Category Navigation
+
+### All Categories Route
+
+**Route:** `/categories`
+
+**Controller:** `CategoryController::index()`
+
+View all available categories to:
+- Understand category structure
+- See subcategory relationships
+- Plan your browsing strategy
+
+### Category Data Loaded on Every Page
+
+Most pages load categories for navigation:
+
+```php
+$categories = Category::all();
+```
+
+This provides:
+- Consistent category navigation
+- Easy category switching
+- Full category hierarchy visibility
+
+<Tip>
+  Categories appear on safaris page, search results, tour details, and more for seamless navigation.
+</Tip>
+
+## Search Performance
+
+### Optimization Features
+
+<AccordionGroup>
+  <Accordion title="Pagination">
+    Search results paginated to 10 per page for fast loading:
+    ```php
+    ->paginate(10)
+    ```
+  </Accordion>
+  <Accordion title="Ordering">
+    Results ordered by ID descending for most recent tours first:
+    ```php
+    ->orderBy("id", "desc")
+    ```
+  </Accordion>
+  <Accordion title="LIKE Operator">
+    Flexible matching with SQL LIKE operator:
+    ```php
+    'LIKE', '%' . $term . '%'
+    ```
+    Matches partial terms anywhere in the field
+  </Accordion>
+  <Accordion title="Null Filtering">
+    Excludes incomplete tours:
+    ```php
+    ['hotel', '!=', Null]
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Content on Search/Browse Pages
+
+### Discovery Features
+
+<Tabs>
+  <Tab title="Blog Integration">
+    **Latest Blog Posts**
+    - 2 most recent blog posts on search/browse pages
+    - Query: `Blog::latest()->limit(2)->get()`
+    - Provides destination inspiration
+    - Route to all blogs: `/all-blogs`
+  </Tab>
+  <Tab title="Random Tours">
+    **Tour Suggestions**
+    - 3 random tours for discovery
+    - Query: `Tours::inRandomOrder()->limit(3)->get()`
+    - Helps discover tours you might not search for
+    - Refreshes on page reload
+  </Tab>
+  <Tab title="Category Links">
+    **Easy Navigation**
+    - All categories loaded: `Category::all()`
+    - Quick category switching
+    - Visible category hierarchy
+  </Tab>
+</Tabs>
+
+<Note>
+  The combination of search, filters, random tours, and blogs creates a comprehensive discovery experience.
+</Note>
+
+## Tips for Effective Searching
+
+<CardGroup cols={2}>
+  <Card title="Be Specific" icon="bullseye">
+    Use specific hotel or lodge names for targeted results
+  </Card>
+  <Card title="Try Variations" icon="arrows-rotate">
+    Search different terms if first attempt doesn't match
+  </Card>
+  <Card title="Use Categories First" icon="sitemap">
+    Start broad with categories, then narrow with search
+  </Card>
+  <Card title="Check Multiple Pages" icon="file-lines">
+    Don't forget to check pagination for more results
+  </Card>
+  <Card title="Explore Subcategories" icon="diagram-project">
+    Subcategories offer specific tour types
+  </Card>
+  <Card title="Read Additional Info" icon="circle-info">
+    Tour `additional_info` field may contain searchable details
+  </Card>
+</CardGroup>
+
+## Search Limitations
+
+<Warning>
+  **Current Limitations:**
+  - Search primarily matches hotel field only
+  - No multi-field search (e.g., location + category)
+  - No price range filtering
+  - No date-based filtering
+  - No advanced search operators (AND, OR, NOT)
+</Warning>
+
+**Workarounds:**
+- Use category + subcategory filtering for multi-criteria search
+- Manually compare prices in results
+- Check `additional_info` field for detailed inclusions
+
+## Next Steps
+
+<Steps>
+  <Step title="Explore">
+    Try different search terms and category combinations
+  </Step>
+  <Step title="Compare">
+    Review multiple tours to find the best fit
+  </Step>
+  <Step title="Read Details">
+    Click through to full tour pages (`/addtour/show/{id}`)
+  </Step>
+  <Step title="Book">
+    When you find your perfect safari, proceed to booking
+  </Step>
+</Steps>
+
+<Card title="Ready to Book?" icon="calendar-check" href="/user-guide/making-bookings">
+  Learn how to complete your safari booking
+</Card>
+
+<Tip>
+  Save interesting tours by noting their names or IDs. Use your profile's booking history to track all your planned safaris.
+</Tip>

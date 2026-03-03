@@ -1,0 +1,652 @@
+---
+title: Events
+description: Discover special events and experiences available on Safaris Web
+---
+
+## Overview
+
+Safaris Web features a dedicated events section showcasing special experiences, cultural events, seasonal attractions, and time-specific activities across Kenya. Events complement tours and accommodations by offering unique, scheduled experiences.
+
+## Event Structure
+
+Events are managed through the `Event` model (`app/Models/Event.php`) and stored in the `events` database table.
+
+### Database Schema
+
+From the `create_events_table` migration:
+
+<Tabs>
+  <Tab title="Basic Information">
+    | Field | Type | Required | Description |
+    |-------|------|----------|-------------|
+    | `id` | Integer | Auto | Unique identifier |
+    | `name` | String | Yes | Event name/title |
+    | `slug` | String | Yes | Unique URL identifier |
+    | `category` | String | Yes | Event type/category |
+    | `location` | String | Yes | Event location |
+  </Tab>
+  <Tab title="Scheduling">
+    | Field | Type | Required | Description |
+    |-------|------|----------|-------------|
+    | `when` | Date | Yes | Event date |
+    | `starts` | Time | Yes | Start time |
+    | `ends` | Time | Yes | End time |
+    
+    <Info>
+      Events are date and time specific, distinguishing them from open-ended tours and accommodations.
+    </Info>
+  </Tab>
+  <Tab title="Details & Pricing">
+    | Field | Type | Description |
+    |-------|------|-------------|
+    | `description` | Text | Full event details |
+    | `price` | String | Event pricing |
+    
+    <Note>
+      Description contains comprehensive event information including what's included, requirements, and expectations.
+    </Note>
+  </Tab>
+  <Tab title="Media">
+    | Field | Type | Required |
+    |-------|------|----------|
+    | `image` | String | Yes |
+    | `image2` | String | Yes |
+    
+    <Tip>
+      Events require 2 images to showcase the experience
+    </Tip>
+  </Tab>
+  <Tab title="Management">
+    | Field | Type | Default |
+    |-------|------|--------|
+    | `user_id` | Integer | - |
+    | `published` | Integer | 0 |
+    | `created_at` | Timestamp | Auto |
+    | `updated_at` | Timestamp | Auto |
+  </Tab>
+</Tabs>
+
+## Event Categories
+
+<CardGroup cols={2}>
+  <Card title="Cultural Events" icon="masks-theater">
+    Traditional ceremonies, cultural festivals, community celebrations
+  </Card>
+  <Card title="Wildlife Events" icon="paw">
+    Great Migration timing, birding seasons, specific wildlife activities
+  </Card>
+  <Card title="Sports Events" icon="trophy">
+    Marathons, safari rallies, cycling events, adventure races
+  </Card>
+  <Card title="Music & Arts" icon="music">
+    Concerts, art exhibitions, cultural performances
+  </Card>
+  <Card title="Food & Wine" icon="wine-glass">
+    Food festivals, culinary events, tasting experiences
+  </Card>
+  <Card title="Adventure Activities" icon="person-hiking">
+    Scheduled climbs, group hikes, adventure challenges
+  </Card>
+</CardGroup>
+
+**Category Filtering:**
+- Route: `/event/category/{category}`
+- Controller: `EventController::category($category)`
+
+## Browsing Events
+
+### Main Events Page
+
+**Route:** `/events`
+
+**Controller:** `EventController::index()`
+
+**Display Logic:**
+```php
+$events = Event::orderBy('id','desc')->get();
+```
+
+**Features:**
+- All published events
+- Ordered by most recent first
+- Shows upcoming and current events
+- Category filtering available
+
+### Homepage Display
+
+Events also appear on the homepage with date filtering:
+
+**Route:** `/`
+
+**Controller:** `HomeController::index()`
+
+**Query:**
+```php
+$date = Carbon::today();
+$events = Event::orderBy('id','desc')->whereDate("when", "=>", $date);
+```
+
+<Info>
+  Homepage only shows current and future events (where event date >= today).
+</Info>
+
+## Event Detail Page
+
+**Route:** `/event/{slug}`
+
+**Controller:** `EventController::show($slug)`
+
+<Steps>
+  <Step title="Access via Slug">
+    Each event has a unique slug for clean URLs
+    
+    Example: `/event/great-migration-experience-2026`
+  </Step>
+  <Step title="View Complete Details">
+    - Event name and category
+    - Full description
+    - Location
+    - Date and time (when, starts, ends)
+    - Price information
+    - Both event images
+  </Step>
+  <Step title="Check Availability">
+    Date/time shows if event is upcoming or past
+  </Step>
+</Steps>
+
+### Event Information Display
+
+<Tabs>
+  <Tab title="Event Details">
+    **Name & Category**
+    - Event title/name
+    - Category classification
+    - Helps understand event type
+    
+    **Location**
+    - Specific venue or area
+    - City, region, or attraction
+    - Accessibility information
+  </Tab>
+  <Tab title="Schedule">
+    **When** (Date field):
+    - Event date in YYYY-MM-DD format
+    - Displayed as formatted date
+    
+    **Starts** (Time field):
+    - Event start time (HH:MM:SS)
+    - Arrival time recommendations
+    
+    **Ends** (Time field):
+    - Event end time
+    - Duration planning
+    
+    <Tip>
+      Check start and end times to plan your day and coordinate with other activities.
+    </Tip>
+  </Tab>
+  <Tab title="Description">
+    **Comprehensive Information:**
+    - Event overview and highlights
+    - What's included
+    - What to expect
+    - What to bring
+    - Dress code or requirements
+    - Age restrictions
+    - Group size information
+    - Meeting point details
+    - Booking instructions
+  </Tab>
+  <Tab title="Pricing">
+    **Price Field** (string format):
+    - Per person pricing
+    - Per ticket pricing
+    - Group rates
+    - Early bird specials
+    - What's included in price
+    - Payment methods
+    
+    <Note>
+      Flexible string format accommodates various pricing structures and special offers.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Event Model
+
+### Fillable Fields
+
+From `app/Models/Event.php`:
+
+```php
+protected $fillable = [
+    "name", 
+    "location", 
+    "description", 
+    "category", 
+    "when", 
+    "starts", 
+    "ends"
+];
+```
+
+**Mass Assignable Fields:**
+- Core event information
+- Scheduling details
+- Security: user_id, published, and price controlled separately
+
+### Unique Features
+
+<AccordionGroup>
+  <Accordion title="Time-Specific">
+    Events are unique in having specific date and time fields:
+    - `when` - The event date
+    - `starts` - Start time
+    - `ends` - End time
+    
+    This distinguishes events from always-available tours and accommodations.
+  </Accordion>
+  <Accordion title="Slug-Based URLs">
+    Like accommodations, events use slugs for clean, SEO-friendly URLs:
+    - Unique slug field with database constraint
+    - URL format: `/event/{slug}`
+    - Easier to share and remember than ID-based URLs
+  </Accordion>
+  <Accordion title="Date Filtering">
+    Homepage filters events to show only upcoming:
+    ```php
+    whereDate("when", "=>", $date)
+    ```
+    Past events are hidden from homepage but remain accessible.
+  </Accordion>
+</AccordionGroup>
+
+## Filtering Events
+
+### By Category
+
+**Route:** `/event/category/{category}`
+
+**Controller:** `EventController::category($category)`
+
+<Steps>
+  <Step title="Select Category">
+    Click category filter or navigate to category URL
+    
+    Examples:
+    - `/event/category/Cultural Events`
+    - `/event/category/Wildlife Events`
+    - `/event/category/Sports Events`
+  </Step>
+  <Step title="View Category Events">
+    All events in selected category displayed
+  </Step>
+  <Step title="Compare Options">
+    Review dates, times, locations, and pricing
+  </Step>
+</Steps>
+
+### By Date (Manual)
+
+While there's no automatic date filter UI, events display their date prominently:
+
+- Check `when` field for event date
+- Homepage shows only upcoming events
+- Manually compare dates when browsing
+
+<Tip>
+  Plan ahead by noting event dates and booking accommodations and tours around special events.
+</Tip>
+
+## Admin Management Routes
+
+Authenticated admins manage events through these routes:
+
+<Tabs>
+  <Tab title="View All">
+    **Admin View:**
+    - Route: `/all-events`
+    - Controller: `EventController::all()`
+    - Middleware: `auth`, `verified`
+    - Shows all events including unpublished and past events
+  </Tab>
+  <Tab title="Create">
+    **New Event:**
+    - Form: `/event/new` (GET)
+    - Submit: `/event/create` (POST)
+    - Middleware: `auth`, `verified`
+    - Requires: name, category, location, when, starts, ends, description, price, 2 images
+  </Tab>
+  <Tab title="Edit">
+    **Update Event:**
+    - Form: `/event/edit/{id}` (GET)
+    - Update: `/event/update/{id}` (PUT)
+    - Middleware: `auth`, `verified`
+    - Can update all fields including dates/times
+  </Tab>
+  <Tab title="Publish">
+    **Toggle Status:**
+    - Route: `/event/publish/{id}` (PUT)
+    - Toggles `published` between 0 and 1
+    - Middleware: `auth`, `verified`
+  </Tab>
+  <Tab title="Delete">
+    **Remove Event:**
+    - Route: `/event/delete/{id}` (DELETE)
+    - Permanently removes event
+    - Middleware: `auth`, `verified`
+  </Tab>
+</Tabs>
+
+<Warning>
+  All admin routes require authentication and email verification. Regular users cannot create or manage events.
+</Warning>
+
+## Event Creation & Publishing
+
+<Steps>
+  <Step title="Create Event">
+    Admin creates event with all required details:
+    - Name, category, location
+    - Date (when), start time, end time
+    - Description and price
+    - 2 images
+    - Auto-generates slug from name
+  </Step>
+  <Step title="Draft Status">
+    Initially created with `published = 0`
+  </Step>
+  <Step title="Review">
+    Admin verifies:
+    - Date and time accuracy
+    - Description completeness
+    - Pricing clarity
+    - Image quality
+  </Step>
+  <Step title="Publish">
+    Set `published = 1` to make visible to public
+  </Step>
+  <Step title="Monitor">
+    Event appears on `/events` page and homepage (if upcoming)
+  </Step>
+</Steps>
+
+## Event Scheduling Details
+
+### Date Field (`when`)
+
+**Format:** Date (YYYY-MM-DD)
+
+**Usage:**
+- Determines if event is upcoming or past
+- Homepage filtering: `whereDate("when", "=>", $date)`
+- Displayed to users for planning
+
+**Examples:**
+- `2026-07-15` - July 15, 2026
+- `2026-12-31` - New Year's Eve event
+
+### Time Fields
+
+**Starts Field:**
+- Format: Time (HH:MM:SS)
+- Event start time
+- Helps attendees plan arrival
+
+**Ends Field:**
+- Format: Time (HH:MM:SS)
+- Event end time
+- Duration planning
+
+**Example:**
+- Starts: `09:00:00` (9:00 AM)
+- Ends: `17:00:00` (5:00 PM)
+- Duration: 8 hours
+
+<Info>
+  Time fields use 24-hour format in database but can be displayed in 12-hour format with AM/PM.
+</Info>
+
+## Event Images
+
+### Image Requirements
+
+**Two Required Images:**
+
+<CardGroup cols={2}>
+  <Card title="Primary Image" icon="image">
+    Main event visual - activity in action, venue, or key attraction
+  </Card>
+  <Card title="Secondary Image" icon="images">
+    Supporting visual - different angle, detail, or context
+  </Card>
+</CardGroup>
+
+**Technical:**
+- Storage: Laravel public storage (`storage/images`)
+- Fields: `image`, `image2`
+- Both images required (validation enforced)
+- Formats: JPG, JPEG, PNG, SVG, WebP
+
+### Image Purpose
+
+<Tabs>
+  <Tab title="Activity Showcase">
+    Images should show:
+    - The activity or experience in action
+    - What participants will do
+    - Atmosphere and setting
+  </Tab>
+  <Tab title="Location Context">
+    Images can include:
+    - Venue or location
+    - Surroundings and setting
+    - Scale and scope of event
+  </Tab>
+  <Tab title="Previous Events">
+    If recurring event:
+    - Photos from previous editions
+    - Crowd size and engagement
+    - Quality and professionalism
+  </Tab>
+</Tabs>
+
+## Use Cases for Events
+
+<AccordionGroup>
+  <Accordion title="Seasonal Wildlife Events">
+    **Example:** Great Migration Viewing
+    - Specific dates when migration is in certain areas
+    - Guided viewing experiences
+    - Time-sensitive wildlife phenomena
+    
+    **Benefits:**
+    - Allows travelers to plan around wildlife events
+    - Combines with safari tours for complete experience
+  </Accordion>
+  <Accordion title="Cultural Festivals">
+    **Example:** Maasai Cultural Festival
+    - Annual or special cultural celebrations
+    - Traditional ceremonies
+    - Community events
+    
+    **Benefits:**
+    - Authentic cultural experiences
+    - Scheduled and organized
+    - Educational and immersive
+  </Accordion>
+  <Accordion title="Adventure Challenges">
+    **Example:** Mt. Kenya Group Climb
+    - Scheduled group climbs with guides
+    - Specific start dates
+    - Fixed itinerary
+    
+    **Benefits:**
+    - Safety in numbers
+    - Professional guidance
+    - Pre-planned logistics
+  </Accordion>
+  <Accordion title="Special Activities">
+    **Example:** Hot Air Balloon Safari
+    - Time-specific activities (dawn flights)
+    - Weather-dependent experiences
+    - Advance booking required
+    
+    **Benefits:**
+    - Ensures availability
+    - Proper scheduling
+    - Coordinated with accommodations
+  </Accordion>
+</AccordionGroup>
+
+## Events vs Other Features
+
+<Tabs>
+  <Tab title="vs Tours">
+    **Events:**
+    - Specific dates and times
+    - Single activity or experience
+    - Price per person/ticket
+    - Shorter duration (hours/single day)
+    
+    **Tours:**
+    - Flexible dates
+    - Complete multi-day packages
+    - Includes accommodation, transport, meals
+    - Multiple days
+  </Tab>
+  <Tab title="vs Accommodations">
+    **Events:**
+    - Time-specific activities
+    - Scheduled experiences
+    - Typically don't include lodging
+    
+    **Accommodations:**
+    - Always available (subject to booking)
+    - No specific event times
+    - Focus on lodging
+  </Tab>
+  <Tab title="vs Services">
+    **Events:**
+    - Scheduled for specific dates/times
+    - Group activities often
+    - Event-based
+    
+    **Services:**
+    - On-demand availability
+    - Individual services
+    - Service-based
+  </Tab>
+</Tabs>
+
+<Tip>
+  **Combine Features:** Book a tour package, add accommodation near an event location, and book the event for a complete, customized experience.
+</Tip>
+
+## Pricing Structure
+
+**Price Field** (string format) can include:
+
+<CardGroup cols={2}>
+  <Card title="Per Person" icon="user">
+    "$50 per person" - Individual pricing
+  </Card>
+  <Card title="Per Ticket" icon="ticket">
+    "$40 per ticket" - Entry-based pricing
+  </Card>
+  <Card title="Group Rates" icon="users">
+    "$200 for groups of 5+" - Bulk discounts
+  </Card>
+  <Card title="Tiered Pricing" icon="layer-group">
+    "Adults $50, Kids $25" - Age-based pricing
+  </Card>
+</CardGroup>
+
+**Additional Pricing Info in Description:**
+- What's included in price
+- Early bird discounts
+- Payment methods accepted
+- Cancellation policies
+- Refund information
+
+## Location Details
+
+**Location Field** should include:
+
+- Specific venue name
+- City or region
+- Proximity to landmarks
+- GPS coordinates (optional, in description)
+- Meeting point information
+- Accessibility details
+
+**Examples:**
+- "Masai Mara National Reserve, Main Gate"
+- "Nairobi National Museum, Uhuru Highway"
+- "Diani Beach, South Coast, Mombasa"
+- "Mt. Kenya Base Camp, Naro Moru Route"
+
+<Info>
+  Clear location information helps attendees plan transportation and coordinate with tour/accommodation bookings.
+</Info>
+
+## Homepage Integration
+
+Events are prominently featured on homepage with date filtering:
+
+```php
+$date = Carbon::today();
+$events = Event::orderBy('id','desc')->whereDate("when", "=>", $date);
+```
+
+**Benefits:**
+- Only shows upcoming events
+- Prevents confusion with past events
+- Encourages timely booking
+- Highlights current opportunities
+
+<Note>
+  Using Carbon for date operations ensures accurate timezone handling and date comparisons.
+</Note>
+
+## Best Practices
+
+<Steps>
+  <Step title="Plan Ahead">
+    Check event dates when planning your trip to Kenya
+  </Step>
+  <Step title="Book Early">
+    Popular events may have limited capacity - book in advance
+  </Step>
+  <Step title="Coordinate">
+    Align event dates with tour and accommodation bookings
+  </Step>
+  <Step title="Read Details">
+    Review full description for requirements, dress codes, what to bring
+  </Step>
+  <Step title="Check Times">
+    Note start and end times to plan your day accordingly
+  </Step>
+  <Step title="Location Research">
+    Verify location and plan transportation in advance
+  </Step>
+</Steps>
+
+## Related Features
+
+<CardGroup cols={2}>
+  <Card title="Tours & Safaris" icon="binoculars" href="/features/tours-safaris">
+    Combine events with multi-day safari packages
+  </Card>
+  <Card title="Accommodations" icon="hotel" href="/features/accommodations">
+    Book lodging near event locations
+  </Card>
+  <Card title="Services" icon="concierge-bell" href="/features/services">
+    Additional services to enhance your event experience
+  </Card>
+</CardGroup>
+
+<Tip>
+  **Pro Tip:** Subscribe or check back regularly for new events. Special and seasonal events are added as dates are confirmed.
+</Tip>

@@ -1,0 +1,740 @@
+---
+title: 'User Management'
+description: 'Complete guide to viewing, editing, and managing user accounts in Safaris Web'
+---
+
+## Overview
+
+The User Management system allows you to view all registered users, update user credentials, and manage user accounts. All user operations are handled by the `UserController`.
+
+**Controller:** `App\Http\Controllers\UserController`  
+**Model:** `App\Models\User`  
+**Table:** `users`  
+**Route Prefix:** `/users`
+
+<Warning>
+  User management routes are **NOT protected** by authentication middleware. This is a significant security concern that should be addressed.
+</Warning>
+
+## User Routes
+
+| Action | Route | Name | Method | Middleware |
+|--------|-------|------|--------|------------|
+| List all users | `/users` | `users` | GET | **None** |
+| Edit user form | `/users/update-user/{id}` | `updatePage` | GET | **None** |
+| Update user | `/users/update/{id}` | `updateUser` | POST | **None** |
+| Delete user | `/users/delete` | `deleteUser` | DELETE | **None** |
+
+<Note>
+  The profile route (`/profile`) is protected by `['auth', 'verified']` middleware and handled by `BookingController`.
+</Note>
+
+## User Model
+
+The User model implements email verification:
+
+```php
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+class User extends Authenticatable implements MustVerifyEmail
+{
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
+
+    public function bookings()
+    {
+        return $this->hasMany('App\\Booking');
+    }
+}
+```
+*Source: User.php:11-49*
+
+### Database Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | integer | Unique user identifier |
+| `name` | string | User's full name |
+| `email` | string | User's email address (unique) |
+| `email_verified_at` | datetime | Timestamp when email was verified |
+| `password` | string | Hashed password (bcrypt) |
+| `remember_token` | string | Token for "remember me" functionality |
+| `created_at` | datetime | Account creation timestamp |
+| `updated_at` | datetime | Last account update timestamp |
+
+### User Relationships
+
+**Bookings:** A user has many bookings
+
+```php
+$user->bookings; // Returns all bookings for this user
+```
+*Source: User.php:45-48*
+
+## Viewing Users
+
+### List All Users
+
+**Route:** `/users`  
+**Method:** GET  
+**Controller Method:** `users()`  
+*Source: UserController.php:13-18*
+
+```php
+public function users() 
+{
+    $users = User::all();
+    return view('users.index', compact('users'))
+        ->with('i', (request()->input('page', 1) -1) * 5);
+}
+```
+
+**Features:**
+- Lists all registered users
+- No pagination (loads all users)
+- No authentication required (security issue)
+
+<Warning>
+  This endpoint is **publicly accessible** and returns all user information. This is a critical security vulnerability.
+</Warning>
+
+### View User Profile
+
+**Route:** `/profile`  
+**Method:** GET  
+**Controller Method:** `BookingController@profile()`  
+**Middleware:** `['auth', 'verified']`
+
+```php
+public function profile()
+{
+    $bookings = Booking::where('user_id', Auth::user()->id)
+        ->latest()
+        ->paginate(10);
+    return view('users.profile', compact('bookings'))
+        ->with('i', (request()->input('page', 1) - 1) * 5);
+}
+```
+*Source: BookingController.php:29-33*
+
+**Features:**
+- Shows logged-in user's bookings
+- Paginated (10 per page)
+- Protected by authentication
+
+## Editing User Credentials
+
+<Steps>
+  <Step title="Navigate to Edit Form">
+    Access the user edit form at `/users/update-user/{id}`
+    
+    **Route Name:** `updatePage`  
+    **Middleware:** None (security issue)
+  </Step>
+  
+  <Step title="Modify User Details">
+    Update any of the following:
+    - Name
+    - Email
+    - Password (with confirmation)
+  </Step>
+  
+  <Step title="Submit Changes">
+    Submit to `/users/update/{id}` via POST
+  </Step>
+</Steps>
+
+### Edit Form
+
+**Route:** `/users/update-user/{id}`  
+**Method:** GET  
+**Controller Method:** `updateView($id)`  
+*Source: UserController.php:22-27*
+
+```php
+public function updateView($id) 
+{
+    $user = User::find($id);
+    return view('users.edit', compact('user'));
+}
+```
+
+<Warning>
+  This endpoint has **no authentication or authorization checks**. Any user can view and edit any other user's information.
+</Warning>
+
+### Update User
+
+**Route:** `/users/update/{id}`  
+**Method:** POST  
+**Controller Method:** `update(Request $request, $id)`  
+*Source: UserController.php:30-60*
+
+```php
+public function update(Request $request, User $user, $id)
+{
+    if($request->password != $request->password_confirmation) {
+        return redirect()->back()
+            ->with('error', 'Password does not match');
+    }
+    
+    $user = new User;
+    $user = User::find($id);
+    
+    if($request->name || $request->email || $request->password) {
+        $user->name = $request->name;
+        $user->email = $request->email;
+        $user->password = Hash::make($request->password);
+    } else {
+        unset($user['name']);
+        unset($user['email']);
+        unset($user['password']);
+    }
+    
+    $user->update();
+    
+    return redirect()->route('users')
+        ->with('success', 'Credentials updated successfully');
+}
+```
+
+#### Password Confirmation
+
+The update requires password confirmation:
+
+```php
+if($request->password != $request->password_confirmation) {
+    return redirect()->back()->with('error', 'Password does not match');
+}
+```
+*Source: UserController.php:33-35*
+
+<Note>
+  Password confirmation is checked manually instead of using Laravel's validation rules.
+</Note>
+
+#### Conditional Update Logic
+
+```php
+if($request->name || $request->email || $request->password) {
+    $user->name = $request->name;
+    $user->email = $request->email;
+    $user->password = Hash::make($request->password);
+} else {
+    unset($user['name']);
+    unset($user['email']);
+    unset($user['password']);
+}
+```
+*Source: UserController.php:40-54*
+
+**Behavior:**
+- If **any** field is provided, **all three** fields are updated
+- Password is hashed using `Hash::make()`
+- If no fields provided, attributes are unset (no update)
+
+<Warning>
+  This logic has issues:
+  1. If you update name only, it tries to set email and password too (may cause errors)
+  2. No validation on email format
+  3. No minimum password requirements
+  4. Updates all fields even if only one changed
+</Warning>
+
+#### Success Response
+
+```php
+return redirect()->route('users')
+    ->with('success', 'Credentials updated successfully');
+```
+
+## Deleting a User
+
+**Route:** `/users/delete`  
+**Method:** DELETE  
+**Controller Method:** `destroy($id)`  
+*Source: UserController.php:62-68*
+
+```php
+public function destroy($id) 
+{
+    $user = User::find($id);
+    $user->delete();
+    
+    return redirect()->route('users.index')
+        ->with('success', 'User Deleted Successfully');
+}
+```
+
+<Warning>
+  **Critical Issues:**
+  1. No authentication required - anyone can delete users
+  2. No authorization check - can't verify if current user should be able to delete this user
+  3. Hard delete - user is permanently removed
+  4. No cascade handling - user's bookings may be orphaned
+  5. Redirect to `users.index` which doesn't exist (should be `users`)
+</Warning>
+
+<Steps>
+  <Step title="Locate the User">
+    Find the user in the users list at `/users`
+  </Step>
+  
+  <Step title="Consider Implications">
+    **Before deleting:**
+    - Check if user has active bookings
+    - Verify this isn't an admin account
+    - Consider if user should be deactivated instead of deleted
+  </Step>
+  
+  <Step title="Confirm Deletion">
+    Click delete button (should require strong confirmation)
+  </Step>
+  
+  <Step title="User Removed">
+    User account is permanently deleted
+  </Step>
+</Steps>
+
+## Security Issues
+
+<Warning>
+  **CRITICAL SECURITY VULNERABILITIES**
+  
+  The user management system has severe security flaws:
+</Warning>
+
+### No Authentication Required
+
+**Problem:** All user management routes are publicly accessible
+
+```php
+// Current (INSECURE)
+Route::get('/users', [UserController::class, 'users'])->name('users');
+Route::get('/users/update-user/{id}', [UserController::class, 'updateView'])->name('updatePage');
+Route::post('users/update/{id}', [UserController::class, 'update'])->name('updateUser');
+Route::delete('users/delete', [UserController::class, 'destroy'])->name('deleteUser');
+```
+*Source: web.php:138-141*
+
+**Impact:**
+- Anyone can view all users
+- Anyone can edit any user's credentials
+- Anyone can delete any user
+
+**Required Fix:**
+
+```php
+// SECURE implementation
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/users', [UserController::class, 'users'])
+        ->name('users');
+    Route::get('/users/update-user/{id}', [UserController::class, 'updateView'])
+        ->name('updatePage');
+    Route::post('users/update/{id}', [UserController::class, 'update'])
+        ->name('updateUser');
+    Route::delete('users/delete', [UserController::class, 'destroy'])
+        ->name('deleteUser');
+});
+```
+
+### No Authorization Checks
+
+**Problem:** No verification that the user should be able to edit/delete other users
+
+**Required Fix:**
+
+```php
+// In controller
+public function updateView($id) {
+    $user = User::find($id);
+    
+    // Check authorization
+    if (Auth::id() !== $user->id && !Auth::user()->isAdmin()) {
+        abort(403, 'Unauthorized');
+    }
+    
+    return view('users.edit', compact('user'));
+}
+```
+
+### Insufficient Validation
+
+**Problem:** Minimal validation on user input
+
+**Current validation:** Only checks if password matches confirmation
+
+**Required validation:**
+
+```php
+$request->validate([
+    'name' => 'required|string|max:255',
+    'email' => 'required|email|unique:users,email,' . $id,
+    'password' => 'nullable|min:8|confirmed',
+]);
+```
+
+### No Soft Deletes
+
+**Problem:** Users are permanently deleted with no recovery option
+
+**Impact:**
+- Cannot recover accidentally deleted accounts
+- Lose user history and data
+- Bookings may be orphaned
+
+**Recommended Fix:**
+
+```php
+// In User model
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class User extends Authenticatable implements MustVerifyEmail
+{
+    use SoftDeletes;
+    
+    // Now $user->delete() will soft delete
+    // Use $user->forceDelete() for permanent deletion
+}
+```
+
+## Recommended Improvements
+
+<Steps>
+  <Step title="Add Authentication Middleware">
+    Protect all user management routes:
+    
+    ```php
+    Route::middleware(['auth', 'verified'])->group(function () {
+        Route::get('/users', [UserController::class, 'users'])->name('users');
+        // ... other routes
+    });
+    ```
+  </Step>
+  
+  <Step title="Implement Authorization">
+    Create a User Policy:
+    
+    ```bash
+    php artisan make:policy UserPolicy --model=User
+    ```
+    
+    Define authorization rules:
+    
+    ```php
+    // app/Policies/UserPolicy.php
+    public function update(User $currentUser, User $user)
+    {
+        return $currentUser->id === $user->id || $currentUser->isAdmin();
+    }
+    
+    public function delete(User $currentUser, User $user)
+    {
+        return $currentUser->isAdmin() && $currentUser->id !== $user->id;
+    }
+    ```
+    
+    Use in controller:
+    
+    ```php
+    $this->authorize('update', $user);
+    ```
+  </Step>
+  
+  <Step title="Add Proper Validation">
+    Use Laravel's validation properly:
+    
+    ```php
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|unique:users,email,' . $id,
+        'password' => 'nullable|min:8|confirmed',
+    ]);
+    ```
+  </Step>
+  
+  <Step title="Implement Soft Deletes">
+    Add SoftDeletes trait to User model and run migration:
+    
+    ```php
+    Schema::table('users', function (Blueprint $table) {
+        $table->softDeletes();
+    });
+    ```
+  </Step>
+  
+  <Step title="Add Admin Role">
+    Implement role-based access control:
+    
+    ```php
+    // Migration
+    $table->string('role')->default('user');
+    
+    // User model
+    public function isAdmin() {
+        return $this->role === 'admin';
+    }
+    
+    // Middleware
+    if (!Auth::user()->isAdmin()) {
+        abort(403);
+    }
+    ```
+  </Step>
+</Steps>
+
+## Code Issues
+
+<AccordionGroup>
+  <Accordion title="Unnecessary Object Creation" icon="code">
+    **Issue:** Creating new User object then immediately overwriting
+    
+    ```php
+    // Current (inefficient)
+    $user = new User;
+    $user = User::find($id);
+    
+    // Should be
+    $user = User::find($id);
+    ```
+    
+    **Location:** UserController.php:37-38
+  </Accordion>
+  
+  <Accordion title="Broken Redirect" icon="route">
+    **Issue:** Redirects to non-existent route
+    
+    ```php
+    // Current (broken)
+    return redirect()->route('users.index')
+    
+    // Should be
+    return redirect()->route('users')
+    ```
+    
+    **Location:** UserController.php:67
+  </Accordion>
+  
+  <Accordion title="Inefficient Update Logic" icon="sync">
+    **Issue:** Updates all fields even if only one changed
+    
+    **Better approach:**
+    ```php
+    $user->fill($request->only(['name', 'email']));
+    
+    if ($request->filled('password')) {
+        $user->password = Hash::make($request->password);
+    }
+    
+    $user->save();
+    ```
+  </Accordion>
+  
+  <Accordion title="Manual Password Confirmation" icon="lock">
+    **Issue:** Checking password confirmation manually
+    
+    **Better approach:**
+    ```php
+    $request->validate([
+        'password' => 'nullable|confirmed|min:8'
+    ]);
+    // Laravel automatically checks password_confirmation field
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="User Updates" icon="user-edit">
+    - Always require current password when changing password
+    - Send email notification when email or password changes
+    - Log all credential changes for security audit
+    - Validate email format and uniqueness
+    - Enforce strong password requirements (min length, complexity)
+  </Accordion>
+  
+  <Accordion title="Account Security" icon="shield">
+    - Implement two-factor authentication
+    - Track failed login attempts
+    - Force password reset for suspicious activity
+    - Lock accounts after multiple failed attempts
+    - Log all account modifications
+  </Accordion>
+  
+  <Accordion title="Data Privacy" icon="user-shield">
+    - Only show users to authorized admins
+    - Hide sensitive information (password hashes, tokens)
+    - Implement GDPR compliance (data export, deletion)
+    - Redact email addresses in public views
+    - Require consent for data processing
+  </Accordion>
+  
+  <Accordion title="Account Management" icon="users-cog">
+    - Use soft deletes instead of hard deletes
+    - Provide account deactivation option
+    - Allow users to download their data
+    - Implement account recovery procedures
+    - Handle orphaned bookings when deleting users
+  </Accordion>
+</AccordionGroup>
+
+## Example: Secure User Update
+
+<CodeGroup>
+```php Secure Controller Method
+// app/Http/Controllers/UserController.php
+public function update(Request $request, $id)
+{
+    $user = User::findOrFail($id);
+    
+    // Authorization check
+    $this->authorize('update', $user);
+    
+    // Validation
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|unique:users,email,' . $id,
+        'current_password' => 'required_with:password',
+        'password' => 'nullable|min:8|confirmed',
+    ]);
+    
+    // Verify current password if changing password
+    if ($request->filled('password')) {
+        if (!Hash::check($request->current_password, $user->password)) {
+            return back()->withErrors(['current_password' => 'Current password is incorrect']);
+        }
+        $validated['password'] = Hash::make($request->password);
+    }
+    
+    // Update user
+    $user->update($validated);
+    
+    // Send notification
+    $user->notify(new CredentialsUpdatedNotification());
+    
+    return redirect()->route('users')
+        ->with('success', 'User updated successfully');
+}
+```
+
+```php User Policy
+// app/Policies/UserPolicy.php
+class UserPolicy
+{
+    public function viewAny(User $user)
+    {
+        return $user->isAdmin();
+    }
+    
+    public function update(User $currentUser, User $user)
+    {
+        // Users can update their own profile
+        // Admins can update any profile
+        return $currentUser->id === $user->id || $currentUser->isAdmin();
+    }
+    
+    public function delete(User $currentUser, User $user)
+    {
+        // Only admins can delete
+        // Cannot delete yourself
+        return $currentUser->isAdmin() && $currentUser->id !== $user->id;
+    }
+}
+```
+
+```php Protected Routes
+// routes/web.php
+Route::middleware(['auth', 'verified'])->group(function () {
+    
+    // Only admins can view all users
+    Route::get('/users', [UserController::class, 'users'])
+        ->middleware('can:viewAny,App\\Models\\User')
+        ->name('users');
+    
+    // Users can edit their own profile, admins can edit any
+    Route::get('/users/update-user/{id}', [UserController::class, 'updateView'])
+        ->name('updatePage');
+    
+    Route::post('users/update/{id}', [UserController::class, 'update'])
+        ->name('updateUser');
+    
+    // Only admins can delete users
+    Route::delete('users/delete/{id}', [UserController::class, 'destroy'])
+        ->name('deleteUser');
+    
+    // User profile (own data only)
+    Route::get('/profile', [BookingController::class, 'profile'])
+        ->name('profile');
+});
+```
+</CodeGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Password Mismatch Error" icon="key">
+    **Error:** "Password does not match"
+    
+    **Cause:** Password and password_confirmation fields don't match
+    
+    **Solution:**
+    - Ensure both fields have exactly the same value
+    - Check for extra spaces or hidden characters
+    - Use Laravel's `confirmed` validation rule instead
+  </Accordion>
+  
+  <Accordion title="Cannot Update Email" icon="envelope">
+    **Problem:** Email update fails or doesn't save
+    
+    **Possible causes:**
+    - Email already exists for another user
+    - Invalid email format
+    - Update logic requires all fields
+    
+    **Solution:**
+    - Check if email is unique
+    - Validate email format
+    - Fix update logic to handle individual fields
+  </Accordion>
+  
+  <Accordion title="Redirect Error After Delete" icon="exclamation-triangle">
+    **Error:** Route [users.index] not defined
+    
+    **Cause:** Delete method redirects to wrong route name
+    
+    **Solution:** Change redirect to `route('users')` instead of `route('users.index')`
+  </Accordion>
+</AccordionGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="User Roles" icon="shield" href="/admin/user-roles">
+    Understand user permissions and access levels
+  </Card>
+  
+  <Card title="Authentication" icon="lock" href="/admin/authentication">
+    Learn about login and email verification
+  </Card>
+  
+  <Card title="Managing Bookings" icon="calendar" href="/admin/managing-bookings">
+    View user bookings
+  </Card>
+  
+  <Card title="Overview" icon="home" href="/admin/overview">
+    Return to admin dashboard
+  </Card>
+</CardGroup>

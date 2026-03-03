@@ -1,0 +1,542 @@
+---
+title: Middleware
+description: Authentication middleware, email verification, and route protection in Safaris Web
+---
+
+## Overview
+
+Middleware provides a convenient mechanism for filtering HTTP requests entering your application. Safaris Web uses middleware extensively for authentication, email verification, and request filtering.
+
+## Middleware Configuration
+
+All middleware is configured in `~/workspace/source/app/Http/Kernel.php`.
+
+### Global Middleware
+
+**Location**: `app/Http/Kernel.php:16-24`
+
+These middleware run on every request:
+
+```php
+protected $middleware = [
+    \App\Http\Middleware\TrustProxies::class,
+    \Illuminate\Http\Middleware\HandleCors::class,
+    \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
+    \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
+    \App\Http\Middleware\TrimStrings::class,
+    \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+];
+```
+
+**Purpose of each**:
+
+- **TrustProxies**: Configure trusted proxy headers
+- **HandleCors**: Handle Cross-Origin Resource Sharing
+- **PreventRequestsDuringMaintenance**: Block requests during maintenance mode
+- **ValidatePostSize**: Ensure POST request size is within limits
+- **TrimStrings**: Automatically trim input strings
+- **ConvertEmptyStringsToNull**: Convert empty strings to null
+
+### Middleware Groups
+
+**Location**: `app/Http/Kernel.php:31-46`
+
+#### Web Middleware Group
+
+```php
+protected $middlewareGroups = [
+    'web' => [
+        \App\Http\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \App\Http\Middleware\VerifyCsrfToken::class,
+        \Illuminate\Routing\Middleware\SubstituteBindings::class,
+    ],
+];
+```
+
+Applied to all routes in `routes/web.php`.
+
+#### API Middleware Group
+
+```php
+'api' => [
+    'throttle:api',
+    \Illuminate\Routing\Middleware\SubstituteBindings::class,
+],
+```
+
+Applied to all routes in `routes/api.php`.
+
+### Route Middleware
+
+**Location**: `app/Http/Kernel.php:55-66`
+
+These can be applied to individual routes or route groups:
+
+```php
+protected $routeMiddleware = [
+    'auth' => \App\Http\Middleware\Authenticate::class,
+    'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
+    'auth.session' => \Illuminate\Session\Middleware\AuthenticateSession::class,
+    'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
+    'can' => \Illuminate\Auth\Middleware\Authorize::class,
+    'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
+    'password.confirm' => \Illuminate\Auth\Middleware\RequirePassword::class,
+    'signed' => \Illuminate\Routing\Middleware\ValidateSignature::class,
+    'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
+    'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+];
+```
+
+## Authentication Middleware
+
+### Authenticate Middleware
+
+**Location**: `~/workspace/source/app/Http/Middleware/Authenticate.php`
+
+```php
+namespace App\Http\Middleware;
+
+use Illuminate\Auth\Middleware\Authenticate as Middleware;
+
+class Authenticate extends Middleware
+{
+    /**
+     * Get the path the user should be redirected to when they are not authenticated.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return string|null
+     */
+    protected function redirectTo($request)
+    {
+        if (! $request->expectsJson()) {
+            return route('login');
+        }
+    }
+}
+```
+
+**Purpose**: Redirects unauthenticated users to the login page.
+
+### Using Auth Middleware
+
+<CodeGroup>
+
+```php Single Route
+Route::get('/dashboard', [HomeController::class, 'admin'])
+    ->middleware('auth');
+```
+
+```php Multiple Routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('/dashboard', [HomeController::class, 'admin']);
+    Route::get('/profile', [UserController::class, 'profile']);
+});
+```
+
+```php Controller Constructor
+class BookingController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+}
+```
+
+```php Except Specific Methods
+class BookingController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware('auth')->except(['index', 'show']);
+    }
+}
+```
+
+</CodeGroup>
+
+### Guest Middleware
+
+Redirects authenticated users away from guest-only pages (login, register).
+
+```php
+Route::get('/login', [LoginController::class, 'showLoginForm'])
+    ->middleware('guest');
+```
+
+## Email Verification Middleware
+
+Safaris Web requires email verification for sensitive operations.
+
+### Configuration
+
+The User model implements `MustVerifyEmail` interface:
+
+```php app/Models/User.php:11
+class User extends Authenticatable implements MustVerifyEmail
+{
+    use HasApiTokens, HasFactory, Notifiable;
+    // ...
+}
+```
+
+### Verified Middleware
+
+Ensures user has verified their email address before accessing certain routes.
+
+**Usage in Routes** (`routes/web.php:57-75`):
+
+```php
+// Requires both authentication AND email verification
+Route::get('/bookings', [BookingController::class, 'index'])
+    ->middleware(['auth', 'verified']);
+
+Route::post('/bookings/new', [BookingController::class, 'store'])
+    ->middleware(['auth', 'verified']);
+
+Route::get('/addtour', [ToursController::class, 'index'])
+    ->middleware(['auth', 'verified']);
+```
+
+### Email Verification Routes
+
+**Location**: `routes/web.php:122-134`
+
+```php
+// Show verification notice
+Route::get('/email/verify', function () {
+    return view('auth.verify');
+})->middleware('auth')->name('verification.notice');
+
+// Handle verification callback
+Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
+    $request->fulfill();
+    return redirect('/');
+})->middleware(['auth', 'signed'])->name('verification.verify');
+
+// Resend verification email
+Route::post('/email/verification-notification', function (Request $request) {
+    $request->user()->sendEmailVerificationNotification();
+    return back()->with('message', 'Verification link sent!');
+})->middleware(['auth', 'throttle:6,1'])->name('verification.send');
+```
+
+### Email Verification Flow
+
+1. **User registers** → Account created, verification email sent
+2. **User attempts protected action** → Redirected to verification notice
+3. **User clicks email link** → Email verified, redirect to homepage
+4. **User can now access protected routes**
+
+### Verification Notice View
+
+```php resources/views/auth/verify.blade.php
+@extends('layout.index')
+
+@section('content')
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">Verify Your Email Address</div>
+                <div class="card-body">
+                    @if (session('message'))
+                        <div class="alert alert-success" role="alert">
+                            {{ session('message') }}
+                        </div>
+                    @endif
+
+                    Before proceeding, please check your email for a verification link.
+                    If you did not receive the email,
+                    
+                    <form class="d-inline" method="POST" action="{{ route('verification.send') }}">
+                        @csrf
+                        <button type="submit" class="btn btn-link p-0 m-0 align-baseline">
+                            click here to request another
+                        </button>.
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+```
+
+## CSRF Protection
+
+### VerifyCsrfToken Middleware
+
+**Location**: `app/Http/Middleware/VerifyCsrfToken.php`
+
+Protects against Cross-Site Request Forgery attacks.
+
+**Automatically applied** to all POST, PUT, PATCH, DELETE requests in the web middleware group.
+
+### Using CSRF Protection
+
+All forms must include the CSRF token:
+
+```php
+<form action="{{ route('tour.store') }}" method="POST">
+    @csrf
+    <!-- form fields -->
+</form>
+```
+
+For AJAX requests:
+
+```javascript
+$.ajaxSetup({
+    headers: {
+        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+    }
+});
+```
+
+Add to layout head:
+
+```php
+<meta name="csrf-token" content="{{ csrf_token() }}">
+```
+
+### Excluding Routes from CSRF
+
+For webhooks or API callbacks:
+
+```php app/Http/Middleware/VerifyCsrfToken.php
+protected $except = [
+    'webhook/*',
+    'api/payment/callback',
+];
+```
+
+## Throttling Middleware
+
+Rate limiting to prevent abuse.
+
+### Usage Examples
+
+<CodeGroup>
+
+```php Default Rate Limit
+// 60 requests per minute
+Route::middleware('throttle:60,1')->group(function () {
+    Route::get('/api/tours', [ToursController::class, 'apiIndex']);
+});
+```
+
+```php Custom Rate Limit
+// 6 requests per minute
+Route::post('/email/verification-notification', function (Request $request) {
+    $request->user()->sendEmailVerificationNotification();
+    return back()->with('message', 'Verification link sent!');
+})->middleware(['auth', 'throttle:6,1']);
+```
+
+```php Named Rate Limiter
+// In RouteServiceProvider
+RateLimiter::for('api', function (Request $request) {
+    return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+});
+
+// In route
+Route::middleware('throttle:api')->group(function () {
+    // API routes
+});
+```
+
+</CodeGroup>
+
+## Custom Middleware
+
+### Creating Custom Middleware
+
+```bash
+php artisan make:middleware CheckUserRole
+```
+
+Implement the middleware:
+
+```php app/Http/Middleware/CheckUserRole.php
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+
+class CheckUserRole
+{
+    public function handle(Request $request, Closure $next, $role)
+    {
+        if (! $request->user() || $request->user()->role !== $role) {
+            return redirect('/')->with('error', 'Unauthorized access');
+        }
+
+        return $next($request);
+    }
+}
+```
+
+### Registering Custom Middleware
+
+Add to `app/Http/Kernel.php`:
+
+```php
+protected $routeMiddleware = [
+    // ... existing middleware
+    'role' => \App\Http\Middleware\CheckUserRole::class,
+];
+```
+
+### Using Custom Middleware
+
+```php
+Route::get('/admin/users', [UserController::class, 'index'])
+    ->middleware('role:admin');
+```
+
+## Admin Authorization Pattern
+
+Safaris Web checks admin status in views (`layout/index.blade.php:143-148`):
+
+```php
+@auth
+    @if(Auth::user()->isAdmin == 1)
+    <li class="nav-item">
+        <a class="nav-link" href="{{ route('dashboard') }}">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+    </li>
+    @endif
+@endauth
+```
+
+### Creating Admin Middleware
+
+For better security, create dedicated admin middleware:
+
+```php app/Http/Middleware/CheckAdmin.php
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class CheckAdmin
+{
+    public function handle(Request $request, Closure $next)
+    {
+        if (!Auth::check() || Auth::user()->isAdmin != 1) {
+            return redirect('/')
+                ->with('error', 'You do not have admin access.');
+        }
+
+        return $next($request);
+    }
+}
+```
+
+Register and use:
+
+```php
+// In Kernel.php
+'admin' => \App\Http\Middleware\CheckAdmin::class,
+
+// In routes
+Route::middleware(['auth', 'admin'])->group(function () {
+    Route::get('/dashboard', [HomeController::class, 'admin']);
+    Route::get('/users', [UserController::class, 'users']);
+    // ... all admin routes
+});
+```
+
+## Middleware Execution Order
+
+1. **Global Middleware** (always runs first)
+2. **Middleware Groups** (web/api)
+3. **Route Middleware** (in order specified)
+4. **Controller Middleware** (constructor)
+
+### Example Flow
+
+```php
+Route::get('/bookings', [BookingController::class, 'index'])
+    ->middleware(['auth', 'verified']);
+```
+
+**Execution Order**:
+1. Global middleware (TrustProxies, HandleCors, etc.)
+2. Web middleware group (EncryptCookies, StartSession, VerifyCsrfToken, etc.)
+3. `auth` middleware (check authentication)
+4. `verified` middleware (check email verification)
+5. Controller method executes
+
+## Middleware Best Practices
+
+### 1. Use Middleware Groups
+
+Group related middleware:
+
+```php
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::resource('tours', ToursController::class);
+    Route::resource('bookings', BookingController::class);
+    Route::resource('blogs', BlogController::class);
+});
+```
+
+### 2. Keep Middleware Focused
+
+Each middleware should have a single responsibility.
+
+### 3. Return Early
+
+```php
+public function handle(Request $request, Closure $next)
+{
+    if (! $this->shouldProcess($request)) {
+        return redirect('/'); // Return early
+    }
+    
+    return $next($request);
+}
+```
+
+### 4. Use Terminable Middleware for Cleanup
+
+```php
+public function terminate(Request $request, $response)
+{
+    // Perform action after response is sent
+    Log::info('Request completed', ['url' => $request->url()]);
+}
+```
+
+## Testing Middleware
+
+Test that middleware blocks unauthorized access:
+
+```php tests/Feature/BookingTest.php
+public function test_guest_cannot_access_bookings()
+{
+    $response = $this->get('/bookings');
+    $response->assertRedirect('/login');
+}
+
+public function test_unverified_user_cannot_book()
+{
+    $user = User::factory()->unverified()->create();
+    
+    $response = $this->actingAs($user)->get('/bookings');
+    $response->assertRedirect('/email/verify');
+}
+```
+
+## Next Steps
+
+- Review [Routes & Controllers](/development/routes-controllers) for route protection patterns
+- Explore [Configuration](/development/configuration) for middleware settings
+- Learn about [Adding Features](/development/adding-features) with proper authorization

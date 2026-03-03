@@ -1,0 +1,575 @@
+---
+title: Tours & Safaris
+description: Tour categories, pricing structure, and safari details on Safaris Web
+---
+
+## Overview
+
+Safaris Web offers a comprehensive collection of Kenya safari tours and holiday packages. This page explains tour categories, pricing structures, tour details, and how tours are organized on the platform.
+
+## Tour Structure
+
+Tours are managed through the `Tours` model (`app/Models/Tours.php`) and stored in the `tours` database table.
+
+### Complete Tour Schema
+
+From the `create_tours_table` migration:
+
+<Tabs>
+  <Tab title="Core Information">
+    | Field | Type | Required | Description |
+    |-------|------|----------|-------------|
+    | `id` | Integer | Auto | Unique identifier |
+    | `hotel` | String | Yes | Accommodation name |
+    | `location` | Text | Yes | Destination/region |
+    | `category` | Text | Yes | Main category |
+    | `sub_category` | Text | Yes | Subcategory |
+  </Tab>
+  <Tab title="Pricing">
+    | Field | Type | Description |
+    |-------|------|-------------|
+    | `per_person_sharing` | Text | Cost when sharing room |
+    | `single_room` | Text | Cost for single occupancy |
+    
+    <Info>
+      Pricing stored as text to allow flexible formats (currency symbols, ranges, "From $XXX", etc.)
+    </Info>
+  </Tab>
+  <Tab title="Logistics">
+    | Field | Type | Description |
+    |-------|------|-------------|
+    | `transport` | Text | Transportation details |
+    | `meals` | Text | Meal plan (Full Board, Half Board, etc.) |
+    | `additional_info` | Text (Nullable) | Extra details, itinerary, inclusions |
+  </Tab>
+  <Tab title="Media">
+    | Field | Type | Required | Description |
+    |-------|------|----------|-------------|
+    | `image` | Text | Yes | Main image path |
+    | `image1` | Text | Yes | Secondary image |
+    | `image2` | Text | No | Optional image |
+    | `image3` | Text | No | Optional image |
+    | `image4` | Text | No | Optional image |
+    | `image5` | Text | No | Optional image |
+    | `image6` | Text | No | Optional image |
+    
+    <Tip>
+      Tours support up to 6 images total for comprehensive visual representation
+    </Tip>
+  </Tab>
+  <Tab title="Management">
+    | Field | Type | Description |
+    |-------|------|-------------|
+    | `user_id` | Integer | Admin who created/manages tour |
+    | `published` | Integer | 0 = unpublished, 1 = published |
+    | `created_at` | Timestamp | Creation date |
+    | `updated_at` | Timestamp | Last modification |
+  </Tab>
+</Tabs>
+
+## Tour Categories
+
+### Main Categories
+
+Tours are organized by main categories accessed via `/tours/{category}` route:
+
+<CardGroup cols={2}>
+  <Card title="Wildlife Safaris" icon="paw">
+    Classic safari experiences in Kenya's national parks and reserves
+  </Card>
+  <Card title="Beach Holidays" icon="umbrella-beach">
+    Coastal getaways along Kenya's Indian Ocean shoreline
+  </Card>
+  <Card title="Cultural Tours" icon="masks-theater">
+    Authentic experiences with Kenya's diverse communities
+  </Card>
+  <Card title="Adventure Tours" icon="mountain">
+    Active experiences including climbing, hiking, and exploration
+  </Card>
+  <Card title="Honeymoon Packages" icon="heart">
+    Romantic safari and beach combinations for couples
+  </Card>
+  <Card title="Family Safaris" icon="people-group">
+    Family-friendly tours with kid-accommodating itineraries
+  </Card>
+</CardGroup>
+
+**How Categories Work:**
+
+- Stored in `category` field (text type)
+- Filtered via: `Tours::where('category', $category)->get()`
+- Controller: `HomeController::tours($category)`
+- Route: `/tours/{category}`
+
+<Info>
+  Categories are also managed in a separate `categories` table with fields: `category_name`, `sub_category`, `sub_category1`, `sub_category2`
+</Info>
+
+### Subcategories
+
+Each main category can have up to 3 levels of subcategories:
+
+**Examples:**
+
+<AccordionGroup>
+  <Accordion title="Wildlife Safaris Subcategories">
+    - Big Five Safaris
+    - Bird Watching Tours
+    - Great Migration Safaris
+    - Photography Safaris
+    - Night Game Drives
+  </Accordion>
+  <Accordion title="Beach Holidays Subcategories">
+    - Diani Beach Packages
+    - Watamu Getaways
+    - Malindi Holidays
+    - Lamu Island Tours
+  </Accordion>
+  <Accordion title="Cultural Tours Subcategories">
+    - Maasai Village Visits
+    - Samburu Cultural Experiences
+    - Swahili Heritage Tours
+    - Traditional Craft Tours
+  </Accordion>
+  <Accordion title="Adventure Tours Subcategories">
+    - Mt. Kenya Climbing
+    - Hiking Safaris
+    - Cycling Tours
+    - Water Sports Adventures
+  </Accordion>
+</AccordionGroup>
+
+**Subcategory Access:**
+- Route: `/tours/categories/{sub_category}`
+- Controller: `HomeController::tour_cat($sub_category)`
+- Query: `Tours::where('sub_category', $sub_category)->get()`
+
+## Pricing Structure
+
+### Dual Pricing System
+
+All tours offer two pricing options:
+
+<Tabs>
+  <Tab title="Per Person Sharing">
+    **Field:** `per_person_sharing`
+    
+    **What It Means:**
+    - Cost per person when sharing a double/twin room
+    - Most economical option
+    - Requires minimum 2 travelers
+    - Common for couples, friends, family members
+    
+    **Typical Inclusions:**
+    - Shared accommodation (double/twin room)
+    - All standard tour inclusions
+    - Transport, meals, activities as specified
+    
+    <Tip>
+      Per person sharing rates typically offer 30-40% savings compared to single room rates
+    </Tip>
+  </Tab>
+  <Tab title="Single Room">
+    **Field:** `single_room`
+    
+    **What It Means:**
+    - Cost for solo traveler with private room
+    - Premium pricing (single supplement applied)
+    - Complete privacy
+    - No roommate required
+    
+    **Typical Inclusions:**
+    - Private room accommodation
+    - All standard tour inclusions
+    - Transport, meals, activities as specified
+    
+    <Note>
+      Single room supplements cover the cost of allocating an entire room to one person
+    </Note>
+  </Tab>
+</Tabs>
+
+### Price Components
+
+Tour pricing typically includes:
+
+<CardGroup cols={2}>
+  <Card title="Accommodation" icon="bed">
+    Hotels, lodges, or camps as specified in `hotel` field
+  </Card>
+  <Card title="Transport" icon="van-shuttle">
+    Vehicle type and arrangements in `transport` field
+  </Card>
+  <Card title="Meals" icon="utensils">
+    Meal plan as detailed in `meals` field
+  </Card>
+  <Card title="Activities" icon="ticket">
+    Often detailed in `additional_info` field
+  </Card>
+</CardGroup>
+
+<Warning>
+  Always read the `additional_info` field for inclusions, exclusions, and pricing details. This field contains important itinerary and cost information.
+</Warning>
+
+## Tour Details
+
+### Accommodation Information
+
+**Hotel Field:**
+
+The `hotel` field contains the primary accommodation name:
+
+- Luxury lodges (e.g., "Serena Safari Lodge")
+- Tented camps (e.g., "Mara Sopa Camp")
+- Beach resorts (e.g., "Diani Reef Beach Resort")
+- Budget camps
+- Mid-range hotels
+
+**Accommodation Standards:**
+- Verified properties
+- Location-appropriate lodging
+- Quality matches tour category
+
+### Transport Details
+
+**Transport Field:**
+
+Contains detailed transportation information:
+
+<Tabs>
+  <Tab title="Vehicle Types">
+    - **4x4 Safari Vehicles**: Standard for wildlife safaris, pop-up roof for game viewing
+    - **Mini-vans**: Budget-friendly option for smaller groups
+    - **Luxury Land Cruisers**: Premium safari experience
+    - **Coaches**: For larger groups or specific tours
+    - **Flight Transfers**: For remote destinations
+  </Tab>
+  <Tab title="Transport Inclusions">
+    Typically includes:
+    - Airport/hotel pickup and drop-off
+    - All inter-destination transfers
+    - Game drive vehicles with experienced drivers
+    - Fuel and vehicle maintenance
+    - Driver/guide services
+  </Tab>
+</Tabs>
+
+### Meal Plans
+
+**Meals Field:**
+
+Specifies what meals are included:
+
+<AccordionGroup>
+  <Accordion title="Full Board (FB)">
+    - Breakfast
+    - Lunch
+    - Dinner
+    - Usually excludes drinks
+    
+    **Best for:** Multi-day safaris, remote locations
+  </Accordion>
+  <Accordion title="Half Board (HB)">
+    - Breakfast
+    - Dinner
+    - Lunch at your own cost
+    
+    **Best for:** Beach holidays, city tours with exploration time
+  </Accordion>
+  <Accordion title="All Inclusive (AI)">
+    - All meals
+    - Snacks
+    - Most drinks (alcoholic and non-alcoholic)
+    - Some activities
+    
+    **Best for:** Resort stays, luxury packages
+  </Accordion>
+  <Accordion title="Bed & Breakfast (B&B)">
+    - Breakfast only
+    - Lunch and dinner at own cost
+    
+    **Best for:** City tours, flexible itineraries
+  </Accordion>
+</AccordionGroup>
+
+### Additional Information
+
+**Additional_Info Field** (nullable text):
+
+This optional field contains:
+
+- Detailed itineraries (day-by-day schedules)
+- Inclusions (what's covered in the price)
+- Exclusions (what's not included)
+- Special notes (visa requirements, vaccination info)
+- Best time to visit
+- Physical fitness requirements
+- Age restrictions
+- Group size information
+
+<Tip>
+  Always read the additional_info field thoroughly before booking. It contains crucial details about what to expect.
+</Tip>
+
+## Tour Listing & Display
+
+### Main Safaris Page
+
+**Route:** `/safaris`
+
+**Controller:** `ToursController::safaris()`
+
+**Display Logic:**
+```php
+$safaris = Tours::inRandomOrder()->paginate(20);
+```
+
+**Features:**
+- 20 tours per page
+- Random ordering for variety
+- Pagination controls
+- Shows all published tours
+
+### Tour Detail Page
+
+**Route:** `/addtour/show/{id}`
+
+**Controller:** `ToursController::show($tours, $id)`
+
+**What's Displayed:**
+
+<Steps>
+  <Step title="Image Gallery">
+    All available images (image, image1, image2-6)
+  </Step>
+  <Step title="Core Details">
+    Hotel, location, category, subcategory
+  </Step>
+  <Step title="Pricing">
+    Both per person sharing and single room rates
+  </Step>
+  <Step title="Logistics">
+    Transport and meal plan details
+  </Step>
+  <Step title="Additional Info">
+    Full additional_info content
+  </Step>
+  <Step title="Actions">
+    Book now button linking to `/bookings/create/{destination}`
+  </Step>
+</Steps>
+
+## Tour Images
+
+### Image Storage
+
+**Storage Location:** `storage/images` directory (Laravel public storage)
+
+**Image Fields:**
+- `image` - Required primary image
+- `image1` - Required secondary image
+- `image2` through `image6` - Optional additional images
+
+**Accepted Formats:** JPG, JPEG, PNG, SVG, WebP
+
+**Validation Rule:**
+```php
+'image' => 'required|mimes:jpg,jpeg,svg,png,webp'
+```
+
+### Image Purpose
+
+<CardGroup cols={2}>
+  <Card title="Accommodation" icon="hotel">
+    Lodge/hotel exterior and interior views
+  </Card>
+  <Card title="Wildlife" icon="hippo">
+    Animals and nature you'll encounter
+  </Card>
+  <Card title="Activities" icon="person-hiking">
+    Game drives, cultural visits, adventures
+  </Card>
+  <Card title="Scenery" icon="mountain-sun">
+    Landscapes and destinations
+  </Card>
+</CardGroup>
+
+<Note>
+  Up to 6 images provide comprehensive visual representation of the safari experience.
+</Note>
+
+## Tour Management Routes
+
+### Admin Routes (Authentication Required)
+
+<Tabs>
+  <Tab title="Viewing">
+    **All Tours:**
+    - Route: `/addtour`
+    - Controller: `ToursController::index()`
+    - Display: `Tours::latest()->paginate(20)`
+    - Middleware: `auth`, `verified`
+  </Tab>
+  <Tab title="Creating">
+    **New Tour Form:**
+    - Route: `/addtour/create` (GET)
+    - Submit: `/addtour/store` (POST)
+    - Middleware: `auth`, `verified`
+    - Requires all fields including 2 images minimum
+  </Tab>
+  <Tab title="Editing">
+    **Edit Tour:**
+    - Route: `/addtour/edit/{id}` (GET)
+    - Update: `/addtour/update/{id}` (POST)
+    - Middleware: `auth`, `verified`
+  </Tab>
+  <Tab title="Publishing">
+    **Toggle Published Status:**
+    - Route: `/addtour/publish/{id}` (PUT)
+    - Toggles between 0 (unpublished) and 1 (published)
+    - Middleware: `auth`, `verified`
+  </Tab>
+</Tabs>
+
+<Warning>
+  These admin routes require authentication and email verification. Regular users cannot create or edit tours.
+</Warning>
+
+## Tour Creation Validation
+
+When creating tours, the following validation applies:
+
+```php
+$request->validate([
+    'hotel' => 'required',
+    'transport' => 'required',
+    'image' => 'required|mimes:jpg,jpeg,svg,png,webp',
+    'image1' => 'required|mimes:jpg,jpeg,svg,png,webp',
+    'single_room' => 'required',
+    'per_person_sharing' => 'required',
+    'meals' => 'required',
+    'category' => 'required',
+    'sub_category' => 'required',
+    'location' => 'required',
+]);
+```
+
+**Required Fields:** hotel, transport, 2 images, both pricing options, meals, category, subcategory, location
+
+**Optional Fields:** image2-6, additional_info
+
+## Publishing Workflow
+
+<Steps>
+  <Step title="Tour Creation">
+    Admin creates tour with all required information via `/addtour/create`
+  </Step>
+  <Step title="Initial Status">
+    Tour created with `published = 0` (not visible to users)
+  </Step>
+  <Step title="Review">
+    Admin reviews tour details, images, pricing
+  </Step>
+  <Step title="Publish">
+    Admin toggles published status to 1 via `/addtour/publish/{id}`
+  </Step>
+  <Step title="Live">
+    Tour now appears on `/safaris` page and in category listings
+  </Step>
+</Steps>
+
+**Toggle Logic:**
+```php
+if ($tour->published == 0) {
+    $tour->published = 1;
+} else {
+    $tour->published = 0;
+}
+$tour->update();
+```
+
+<Info>
+  Unpublishing doesn't delete the tour - it simply hides it from public view. Admins can still see unpublished tours.
+</Info>
+
+## Tour Discovery Features
+
+### Random Tour Display
+
+Many pages show random tours for discovery:
+
+```php
+Tours::inRandomOrder()->limit(3)->get()
+```
+
+Or for homepage:
+```php
+Tours::inRandomOrder()->get()
+```
+
+**Benefits:**
+- Users discover different tours on each visit
+- Promotes lesser-known packages
+- Increases tour visibility
+
+### Latest Tours
+
+Some contexts show newest tours:
+
+```php
+Tours::latest()->limit(3)->get()
+```
+
+**Used for:**
+- Booking page suggestions
+- New offerings highlight
+- Admin management views
+
+## Integration with Other Features
+
+<CardGroup cols={2}>
+  <Card title="Bookings" icon="calendar-check" href="/user-guide/making-bookings">
+    Tours link directly to booking via `/bookings/create/{destination}`
+  </Card>
+  <Card title="Categories" icon="folder-tree">
+    Tours organized by categories from `categories` table
+  </Card>
+  <Card title="Blogs" icon="newspaper" href="/features/blog-media">
+    Blog posts inspire and inform tour selection
+  </Card>
+  <Card title="Search" icon="magnifying-glass" href="/user-guide/search-filters">
+    Tours searchable by hotel name via `/search`
+  </Card>
+</CardGroup>
+
+## Best Practices for Tour Selection
+
+<Steps>
+  <Step title="Compare Options">
+    Review multiple tours in your preferred category
+  </Step>
+  <Step title="Check Pricing">
+    Compare per person sharing vs single room rates
+  </Step>
+  <Step title="Review Inclusions">
+    Read additional_info for complete details
+  </Step>
+  <Step title="Examine Images">
+    View all 6 images to understand accommodation and destinations
+  </Step>
+  <Step title="Verify Meal Plan">
+    Ensure meal plan matches your preferences
+  </Step>
+  <Step title="Check Transport">
+    Confirm transport type suits your needs
+  </Step>
+</Steps>
+
+<Card title="Ready to Book?" icon="paper-plane" href="/user-guide/making-bookings">
+  Learn how to book your selected safari
+</Card>
+
+<Tip>
+  Use the additional_info field to understand exactly what's included and excluded in your tour package before booking.
+</Tip>

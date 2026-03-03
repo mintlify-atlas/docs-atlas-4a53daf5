@@ -1,0 +1,413 @@
+---
+title: Database Setup
+description: Database migrations, schema structure, and seeding for Safaris Web
+---
+
+## Overview
+
+Safaris Web uses Laravel migrations to manage database schema. All migration files are located in `~/workspace/source/database/migrations/`.
+
+## Running Migrations
+
+### Execute All Migrations
+
+```bash
+php artisan migrate
+```
+
+### Rollback Migrations
+
+<CodeGroup>
+
+```bash Rollback Last Batch
+php artisan migrate:rollback
+```
+
+```bash Rollback All
+php artisan migrate:reset
+```
+
+```bash Fresh Migration
+php artisan migrate:fresh
+```
+
+```bash Fresh with Seeding
+php artisan migrate:fresh --seed
+```
+
+</CodeGroup>
+
+## Database Schema
+
+### Users Table
+
+**Migration**: `2014_10_12_000000_create_users_table.php`
+
+```php
+Schema::create('users', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');
+    $table->string('email')->unique();
+    $table->timestamp('email_verified_at')->nullable();
+    $table->string('password');
+    $table->boolean('isAdmin')->default(false);
+    $table->rememberToken();
+    $table->timestamps();
+});
+```
+
+**Purpose**: Stores user accounts with email verification support and admin flag.
+
+### Categories Table
+
+**Migration**: `2014_10_12_000001_create_categories_table.php`
+
+```php
+Schema::create('categories', function (Blueprint $table) {
+    $table->id();
+    $table->text('name');
+    $table->text('sub_name');
+    $table->text('image');
+    $table->text('desc')->nullable();
+    $table->timestamps();
+});
+```
+
+**Purpose**: Tour and product categories with subcategories for hierarchical organization.
+
+### Tours Table
+
+**Migration**: `2019_05_01_071637_create_tours_table.php`
+
+```php
+Schema::create('tours', function (Blueprint $table) {
+    $table->id();
+    $table->string('hotel');
+    $table->text('transport');
+    $table->text('location');
+    $table->text('category');
+    $table->text('sub_category');
+    $table->text('image');
+    $table->text('image1');
+    $table->text('image2');
+    $table->text('per_person_sharing');
+    $table->text('single_room');
+    $table->text('meals');
+    $table->text('additional_info')->nullable();
+    $table->integer('user_id');
+    $table->integer('published')->default(0);
+    $table->timestamps();
+});
+```
+
+**Key Fields**:
+- Multiple image fields (image, image1, image2, etc.) added via migration `2023_02_19_082113`
+- `published` field for draft/published status
+- `user_id` tracks which admin created the tour
+
+### Tour Bookings Table
+
+**Migration**: `2022_05_01_081632_create_tour_booking_table.php`
+
+```php
+Schema::create('tour_bookings', function (Blueprint $table) {
+    $table->id();
+    $table->string('transaction_code');
+    $table->string('first_name');
+    $table->string('last_name');
+    $table->string('email');
+    $table->string('phone_number');
+    $table->string('country');
+    $table->date('arrival_date');
+    $table->string('adults');
+    $table->string('kids');
+    $table->string('destination');
+    $table->text('special_requirements');
+    $table->integer('user_id');
+    $table->string('status')->default(0);
+    $table->timestamps();
+});
+```
+
+**Purpose**: Stores customer bookings with transaction tracking and status management.
+
+### Enquiries Table
+
+**Migration**: `2022_05_05_103428_create_enquiries_table.php`
+
+```php
+Schema::create('enquiries', function (Blueprint $table) {
+    $table->id();
+    $table->text('full_name');
+    $table->text('email_address');
+    $table->text('phone_number');
+    $table->text('destinations');
+    $table->text('nationality');
+    $table->text('travel_date');
+    $table->text('adults');
+    $table->text('kids');
+    $table->text('budget');
+    $table->text('medium');
+    $table->text('luxury');
+    $table->text('additional_info')->nullable();
+    $table->timestamps();
+});
+```
+
+**Purpose**: Contact form submissions for tour enquiries with budget preferences.
+
+### Blogs Table
+
+**Migration**: `2022_05_13_174630_create_blogs_table.php`
+
+```php
+Schema::create('blogs', function (Blueprint $table) {
+    $table->id();
+    $table->string('title');
+    $table->text('content');
+    $table->text('image');
+    $table->integer('user_id');
+    $table->integer('published')->default(0);
+    $table->timestamps();
+});
+```
+
+**Image Fields**: Extended with `image2` and `image3` via migration `2023_02_19_082200`
+
+### Highlights Table
+
+**Migration**: `2022_05_13_213354_create_highlights_table.php`
+
+```php
+Schema::create('highlights', function (Blueprint $table) {
+    $table->id();
+    $table->text('title');
+    $table->text('description');
+    $table->timestamps();
+});
+```
+
+**Purpose**: Featured content sections for the homepage.
+
+### Videos Table
+
+**Migration**: `2022_05_14_080334_add_videos_table.php`
+
+```php
+Schema::create('videos', function (Blueprint $table) {
+    $table->id();
+    $table->text('url');
+    $table->timestamps();
+});
+```
+
+**Purpose**: Stores YouTube/Vimeo video URLs for media gallery.
+
+### Products Table
+
+**Migration**: `2023_01_14_060237_create_products_table.php`
+
+```php
+Schema::create('products', function (Blueprint $table) {
+    $table->id();
+    $table->string("name");
+    $table->string('slug')->unique();
+    $table->string("category");
+    $table->string("image");
+    $table->string("image2");
+    $table->string("location");
+    $table->string("price");
+    $table->integer("quantity_available");
+    $table->text("description");
+    $table->integer('user_id');
+    $table->integer('published')->default(0);
+    $table->timestamps();
+});
+```
+
+**Purpose**: E-commerce products with inventory tracking and slug-based URLs.
+
+### Services Table
+
+**Migration**: `2023_01_14_060259_create_services_table.php`
+
+```php
+Schema::create('services', function (Blueprint $table) {
+    $table->id();
+    $table->string("name");
+    $table->string('slug')->unique();
+    $table->string("category");
+    $table->string("location");
+    $table->text("description");
+    $table->integer('user_id');
+    $table->integer('published')->default(0);
+    $table->timestamps();
+});
+```
+
+**Image Fields**: Added via migration `2023_02_19_082629`
+
+### Events Table
+
+**Migration**: `2023_01_16_102852_create_events_table.php`
+
+```php
+Schema::create('events', function (Blueprint $table) {
+    $table->id();
+    $table->string("name");
+    $table->string('slug')->unique();
+    $table->string("category");
+    $table->string("location");
+    $table->text("description");
+    $table->string("when");
+    $table->date("starts");
+    $table->date("ends");
+    $table->integer('user_id');
+    $table->integer('published')->default(0);
+    $table->timestamps();
+});
+```
+
+**Purpose**: Upcoming events and activities with date ranges.
+
+### Accommodations Table
+
+**Migration**: `2023_01_19_005535_create_accomodations_table.php`
+
+```php
+Schema::create('accomodations', function (Blueprint $table) {
+    $table->id();
+    $table->string("name");
+    $table->string('slug')->unique();
+    $table->string("category");
+    $table->string("location");
+    $table->string("rates");
+    $table->text("description");
+    $table->integer('user_id');
+    $table->integer('published')->default(0);
+    $table->timestamps();
+});
+```
+
+**Image Fields**: Multiple images added via migration `2023_02_19_082027`
+
+## Database Seeding
+
+### Seeder File Location
+
+`~/workspace/source/database/seeders/DatabaseSeeder.php`
+
+### Running Seeders
+
+<CodeGroup>
+
+```bash Run All Seeders
+php artisan db:seed
+```
+
+```bash Run Specific Seeder
+php artisan db:seed --class=UserSeeder
+```
+
+```bash Migrate with Seeding
+php artisan migrate:fresh --seed
+```
+
+</CodeGroup>
+
+### Creating a Seeder
+
+```bash
+php artisan make:seeder CategorySeeder
+```
+
+Example seeder implementation:
+
+```php
+use App\Models\Category;
+use Illuminate\Database\Seeder;
+
+class CategorySeeder extends Seeder
+{
+    public function run()
+    {
+        Category::create([
+            'name' => 'Safari Tours',
+            'sub_name' => 'Wildlife Safari',
+            'image' => 'categories/safari.jpg',
+            'desc' => 'Experience African wildlife'
+        ]);
+    }
+}
+```
+
+## Schema Modification Patterns
+
+### Adding Columns
+
+Notice how image fields were added to existing tables:
+
+```php
+// Migration: 2023_02_19_082113_add_image_fields_to_tours_table.php
+Schema::table('tours', function (Blueprint $table) {
+    $table->text('image3')->nullable();
+    $table->text('image4')->nullable();
+    $table->text('image5')->nullable();
+    $table->text('image6')->nullable();
+});
+```
+
+### Adding Publish Status
+
+```php
+// Migration: 2023_01_14_215019_add_publish_to_tours.php
+Schema::table('tours', function (Blueprint $table) {
+    $table->integer('published')->default(0);
+    $table->integer('user_id');
+});
+```
+
+## Database Relationships
+
+The schema supports these relationships:
+
+- **User → Tour Bookings**: One-to-Many (via `user_id`)
+- **User → Tours**: One-to-Many (creator relationship)
+- **User → Blogs**: One-to-Many (author relationship)
+- **Categories → Tours**: Referenced via `category` field
+
+See [Models & Relationships](/development/models-relationships) for implementation details.
+
+## Indexing & Performance
+
+### Recommended Indexes
+
+```php
+// Add indexes for frequently queried columns
+$table->index('category');
+$table->index('published');
+$table->index('user_id');
+$table->index(['category', 'published']);
+```
+
+### Full-Text Search
+
+For tour search functionality:
+
+```php
+$table->fullText(['hotel', 'location', 'additional_info']);
+```
+
+## Migration Best Practices
+
+1. **Never modify existing migrations** - Create new migrations for changes
+2. **Use descriptive names** - `add_image_fields_to_tours_table.php`
+3. **Make migrations reversible** - Always implement `down()` method
+4. **Test rollbacks** - Ensure `migrate:rollback` works correctly
+5. **Use transactions** - Wrap schema changes in transactions when possible
+
+## Next Steps
+
+- Explore [Models & Relationships](/development/models-relationships)
+- Learn about [Routes & Controllers](/development/routes-controllers)
+- Understand [Blade Templates](/development/blade-templates)

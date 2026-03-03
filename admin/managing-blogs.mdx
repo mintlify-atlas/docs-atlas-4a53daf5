@@ -1,0 +1,704 @@
+---
+title: 'Managing Blog Posts'
+description: 'Complete guide to creating, editing, publishing, and deleting blog content in Safaris Web'
+---
+
+## Overview
+
+The Blog Management system allows you to create and manage blog posts with rich content and multiple images. All blog operations are handled by the `BlogController`.
+
+**Controller:** `App\Http\Controllers\BlogController`  
+**Model:** `App\Models\Blog`  
+**Table:** `blogs`  
+**Route Prefix:** `/blogs`
+
+<Note>
+  All blog management operations require `['auth', 'verified']` middleware - you must be logged in and have a verified email.
+</Note>
+
+## Blog Routes
+
+| Action | Route | Name | Method | Middleware |
+|--------|-------|------|--------|------------|
+| Public blog listing | `/blogs` | `blogs` | GET | None |
+| Admin blog listing | `/all-blogs` | `all-blogs` | GET | None |
+| View single blog | `/blogs/show/{id}` | `blogs.show` | GET | None |
+| Create blog form | `/blogs/create` | `blogs.create` | GET | `['auth', 'verified']` |
+| Store new blog | `/blogs/store` | `blogs.store` | POST | `['auth', 'verified']` |
+| Edit blog form | `/blogs/edit/{id}` | `blogs.edit` | GET | `['auth', 'verified']` |
+| Update blog | `/blogs/update/{id}` | `blogs.update` | POST | `['auth', 'verified']` |
+| Delete blog | `/blogs/delete/{id}` | `blogs.delete` | DELETE | `['auth', 'verified']` |
+| Publish/unpublish | `/blogs/publish/{id}` | `blogs.publish` | PUT | `['auth', 'verified']` |
+
+## Blog Model
+
+The Blog model defines the fillable attributes:
+
+```php
+protected $fillable = [ 
+    'image',
+    'title',
+    'content'
+];
+```
+
+### Database Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | integer | Auto | Unique blog identifier |
+| `title` | string | Yes | Blog post title |
+| `content` | text | Yes | Blog post content (HTML supported) |
+| `image` | string | Yes | Main blog image path |
+| `image2` | string | Yes | Second image path |
+| `image3` | string | No | Third image path |
+| `image4` | string | No | Fourth image path |
+| `image5` | string | No | Fifth image path |
+| `image6` | string | No | Sixth image path |
+| `published` | boolean | Auto | Publication status (0=draft, 1=published) |
+| `user_id` | integer | Auto | ID of user who created the blog |
+| `created_at` | datetime | Auto | Creation timestamp |
+| `updated_at` | datetime | Auto | Last update timestamp |
+
+## Viewing Blogs
+
+### Public Blog Listing
+
+**Route:** `/blogs`  
+**Method:** GET  
+**Controller Method:** `index()`  
+*Source: BlogController.php:21-33*
+
+```php
+public function index()
+{
+    $coverBlogs = Blog::latest()->paginate(6);
+    $blogs = Blog::latest()->limit(2)->get();
+    
+    return view('blogs.index', [
+        'blogs' => $blogs,
+        'coverBlogs' => $coverBlogs
+    ]);
+}
+```
+
+**Features:**
+- Public-facing blog page
+- Shows 6 cover blogs (paginated)
+- Displays 2 latest blogs separately
+- No authentication required
+
+### Admin Blog Listing
+
+**Route:** `/all-blogs`  
+**Method:** GET  
+**Controller Method:** `blogs()`  
+*Source: BlogController.php:11-14*
+
+```php
+public function blogs() 
+{
+    $blogs = Blog::latest()->paginate(10);
+    return view('admin.blogs', compact('blogs'))
+        ->with('i', (request()->input('page', 1) - 1) * 5);
+}
+```
+
+**Features:**
+- Admin view of all blogs
+- Shows 10 blogs per page
+- Sorted by newest first
+- Includes unpublished drafts
+
+### View Single Blog
+
+**Route:** `/blogs/show/{id}`  
+**Method:** GET  
+**Controller Method:** `show($id)`  
+*Source: BlogController.php:105-118*
+
+```php
+public function show(Blog $blog, $id)
+{
+    $blogs = Blog::latest()->limit(2)->get();
+    $blog = Blog::find($id);
+    $coverBlogs = Blog::latest()->limit(4)->get();
+    
+    return view('blogs.show', compact('blog'), [
+        'blogs' => $blogs,
+        'coverBlogs' => $coverBlogs 
+    ]);
+}
+```
+
+**Features:**
+- Public-facing single blog view
+- Shows related blog posts
+- No authentication required
+
+## Creating a Blog Post
+
+<Steps>
+  <Step title="Navigate to Create Form">
+    Access the blog creation form at `/blogs/create`
+    
+    **Route Name:** `blogs.create`  
+    **Middleware:** `['auth', 'verified']`
+  </Step>
+  
+  <Step title="Fill Required Fields">
+    Complete all required form fields:
+    - Title (blog post title)
+    - Content (blog post body - can include HTML)
+    - Main image (required)
+    - Second image (required)
+    - Additional images (optional: up to 4 more)
+  </Step>
+  
+  <Step title="Add Rich Content">
+    Use the content field to include:
+    - Formatted text
+    - HTML markup
+    - Links and references
+    - Structured paragraphs
+  </Step>
+  
+  <Step title="Submit the Form">
+    Submit to `/blogs/store` via POST
+  </Step>
+</Steps>
+
+### Create Form
+
+**Route:** `/blogs/create`  
+**Method:** GET  
+**Controller Method:** `create()`  
+*Source: BlogController.php:40-45*
+
+```php
+public function create()
+{
+    $blogs = Blog::all();
+    return view('blogs.create', compact('blogs'));
+}
+```
+
+### Store New Blog
+
+**Route:** `/blogs/store`  
+**Method:** POST  
+**Controller Method:** `store(Request $request)`  
+*Source: BlogController.php:53-97*
+
+#### Validation Rules
+
+```php
+$request->validate([
+    'title' => 'required',
+    'image' => 'required',
+    'content' => 'required'
+]);
+```
+
+**Required Fields:**
+- `title` - Blog post title
+- `image` - Main image file
+- `content` - Blog post content
+
+<Note>
+  While `image2` is not validated as required, it's stored automatically if provided. The controller assumes it exists.
+</Note>
+
+#### Image Handling
+
+The system handles up to 6 images:
+
+```php
+// Required images
+$path = $request->image->store('images', 'public');
+$path_1 = $request->image2->store('images', 'public');
+$blog->image = $path;
+$blog->image2 = $path_1;
+
+// Optional images (image3 through image6)
+if($request->image3) {
+    $path_2 = $request->image3->store('images', 'public');
+    $blog->image3 = $path_2;
+}
+
+if($request->image4) {
+    $path_3 = $request->image4->store('images', 'public');
+    $blog->image4 = $path_3;
+}
+
+if($request->image5) {
+    $path_4 = $request->image5->store('images', 'public');
+    $blog->image5 = $path_4;
+}
+
+if($request->image6) {
+    $path_5 = $request->image6->store('images', 'public');
+    $blog->image6 = $path_5;
+}
+```
+
+**Image Storage:**
+- Stored in `storage/app/public/images/`
+- Accessible via `storage/images/` symlink
+- Automatic filename generation
+- All standard web image formats supported
+
+#### User Association
+
+The authenticated user's ID is automatically attached:
+
+```php
+$blog->user_id = Auth::id();
+```
+*Source: BlogController.php:92*
+
+#### Success Response
+
+After successful creation:
+
+```php
+return redirect()->route('blogs')
+    ->with('success', 'Content Created Successfully!');
+```
+
+## Editing a Blog Post
+
+<Steps>
+  <Step title="Navigate to Edit Form">
+    Click edit on a blog or navigate to `/blogs/edit/{id}`
+    
+    **Route Name:** `blogs.edit`  
+    **Middleware:** `['auth', 'verified']`
+  </Step>
+  
+  <Step title="Modify Blog Details">
+    Update any fields you want to change. Images are optional - leave blank to keep existing images.
+  </Step>
+  
+  <Step title="Submit Changes">
+    Submit to `/blogs/update/{id}` via POST
+  </Step>
+</Steps>
+
+### Edit Form
+
+**Route:** `/blogs/edit/{id}`  
+**Method:** GET  
+**Controller Method:** `edit($id)`  
+*Source: BlogController.php:126-131*
+
+```php
+public function edit(Blog $blog, $id)
+{
+    $blog = Blog::find($id);
+    return view('blogs.edit', compact('blog'));
+}
+```
+
+### Update Blog
+
+**Route:** `/blogs/update/{id}`  
+**Method:** POST  
+**Controller Method:** `update(Request $request, $id)`  
+*Source: BlogController.php:140-173*
+
+<Note>
+  Images are **not required** when updating - if no new images are uploaded, the existing images are preserved.
+</Note>
+
+#### Image Update Logic
+
+```php
+if($request->hasFile('image') || $request->hasFile('image2') || 
+   $request->hasFile('image3') || $request->hasFile('image4') || 
+   $request->hasFile('image5') || $request->hasFile('image6')) 
+{
+    // Store new images
+    $path = $request->image->store('images', 'public');
+    $path2 = $request->image2->store('images', 'public');
+    $path3 = $request->image3->store('images', 'public');
+    $path4 = $request->image4->store('images', 'public');
+    $path5 = $request->image5->store('images', 'public');
+    $path6 = $request->image6->store('images', 'public');
+    
+    $blog->image = $path;
+    $blog->image2 = $path2;
+    $blog->image3 = $path3;
+    $blog->image4 = $path4;
+    $blog->image5 = $path5;
+    $blog->image6 = $path6;
+} else {
+    // Keep existing images
+    unset($blog['image']);
+    unset($blog['image2']);
+    unset($blog['image3']);
+    unset($blog['image4']);
+    unset($blog['image5']);
+    unset($blog['image6']);
+}
+```
+
+<Warning>
+  The update logic has a potential issue: it checks if **any** image is uploaded, then tries to store **all** images. If only some images are provided, this will cause errors.
+</Warning>
+
+#### Content and Title Update
+
+```php
+$blog = Blog::find($id);
+$blog->title = $request->title;
+$blog->content = $request->content;
+$blog->user_id = Auth::id();
+$blog->update();
+```
+*Source: BlogController.php:167-171*
+
+#### Success Response
+
+```php
+return redirect()->route('all-blogs')
+    ->with('success', 'Content updated Successfully!');
+```
+
+## Publishing Workflow
+
+### Publish/Unpublish Blog
+
+**Route:** `/blogs/publish/{id}`  
+**Method:** PUT  
+**Controller Method:** `publish($id)`  
+*Source: BlogController.php:192-205*
+
+```php
+public function publish($id)
+{
+    $blog = Blog::find($id);
+    
+    if ($blog->published == 0) {
+        $blog->published = 1;  // Publish
+        $blog->update();
+    } else {
+        $blog->published = 0;  // Unpublish
+        $blog->update();
+    }
+    
+    return redirect()->route('blogs');
+}
+```
+
+**Publication States:**
+- `published = 0` - Draft/Unpublished (not visible to public)
+- `published = 1` - Published (visible to public)
+
+<Note>
+  The publish endpoint toggles the published state. Check the current state before calling this endpoint.
+</Note>
+
+### How to Use
+
+<Tabs>
+  <Tab title="Publish a Draft">
+    ```bash
+    # PUT request to publish blog with ID 5
+    PUT /blogs/publish/5
+    ```
+    
+    If `published = 0`, it will be set to `1`
+  </Tab>
+  
+  <Tab title="Unpublish a Blog">
+    ```bash
+    # PUT request to unpublish blog with ID 5
+    PUT /blogs/publish/5
+    ```
+    
+    If `published = 1`, it will be set to `0`
+  </Tab>
+</Tabs>
+
+## Deleting a Blog Post
+
+**Route:** `/blogs/delete/{id}`  
+**Method:** DELETE  
+**Controller Method:** `destroy($id)`  
+*Source: BlogController.php:181-188*
+
+```php
+public function destroy(Blog $blog, $id)
+{
+    $blog = Blog::find($id);
+    $blog->delete();
+    
+    return redirect()->route('blogs')
+        ->with('success', 'Content Deleted');
+}
+```
+
+<Warning>
+  **Deletion is permanent!** There is no soft delete implemented. Once a blog is deleted, it cannot be recovered. Consider archiving instead.
+</Warning>
+
+<Steps>
+  <Step title="Locate the Blog">
+    Find the blog you want to delete in the admin blog list at `/all-blogs`
+  </Step>
+  
+  <Step title="Confirm Deletion">
+    Click the delete button (should show confirmation dialog)
+  </Step>
+  
+  <Step title="Blog Removed">
+    The blog post is permanently deleted from the database and you're redirected to the blogs list
+  </Step>
+</Steps>
+
+## Content Formatting
+
+### HTML in Content
+
+The content field accepts HTML, allowing for rich formatting:
+
+```html
+<h2>Your Adventure Awaits</h2>
+
+<p>Experience the <strong>breathtaking</strong> wildlife of the Serengeti...</p>
+
+<ul>
+  <li>Daily game drives</li>
+  <li>Expert guides</li>
+  <li>Luxury accommodations</li>
+</ul>
+
+<blockquote>
+  "An unforgettable experience!" - Previous traveler
+</blockquote>
+```
+
+<Note>
+  Make sure to sanitize user input if allowing HTML to prevent XSS attacks. Consider using a WYSIWYG editor with XSS protection.
+</Note>
+
+### Images in Blog Posts
+
+Blog posts support up to 6 images:
+
+1. **image** - Main featured image (required)
+2. **image2** - Secondary image (effectively required)
+3. **image3-6** - Additional supporting images (optional)
+
+**Best Practices:**
+- Use high-quality images (minimum 800px width)
+- Optimize images before upload (compress for web)
+- Include descriptive alt text
+- Use landscape orientation for better layout
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Content Quality" icon="star">
+    - Write engaging, SEO-friendly titles
+    - Use proper heading hierarchy (H2, H3, etc.)
+    - Break content into digestible paragraphs
+    - Include internal links to tours and other blogs
+    - Add relevant keywords naturally
+    - Proofread before publishing
+  </Accordion>
+  
+  <Accordion title="Image Management" icon="image">
+    - Compress images to reduce file size (aim for under 200KB)
+    - Use descriptive filenames before upload
+    - Maintain consistent aspect ratios
+    - Provide at least 2 images (main and secondary)
+    - Use high-quality, relevant images
+    - Consider image copyright and attribution
+  </Accordion>
+  
+  <Accordion title="Publishing Strategy" icon="calendar">
+    - Create posts as drafts first (`published = 0`)
+    - Review content multiple times before publishing
+    - Schedule posts for optimal timing
+    - Update existing content periodically
+    - Use unpublish for seasonal content
+  </Accordion>
+  
+  <Accordion title="SEO Optimization" icon="search">
+    - Use descriptive, keyword-rich titles
+    - Include relevant keywords in content
+    - Link to related tours and pages
+    - Keep content fresh and updated
+    - Use proper HTML structure
+  </Accordion>
+</AccordionGroup>
+
+## Example: Creating a Complete Blog Post
+
+<CodeGroup>
+```php Request Payload
+[
+    'title' => 'Top 10 Safari Destinations in Tanzania',
+    'content' => '<h2>Discover Tanzania\'s Best Safari Spots</h2>
+                  <p>Tanzania offers some of Africa\'s most incredible wildlife experiences...</p>
+                  <ul>
+                    <li>Serengeti National Park</li>
+                    <li>Ngorongoro Crater</li>
+                    <li>Tarangire National Park</li>
+                  </ul>',
+    'image' => UploadedFile,  // Main image
+    'image2' => UploadedFile, // Second image
+    'image3' => UploadedFile, // Optional
+]
+```
+
+```php Controller Processing
+// BlogController@store
+$blog = new Blog;
+
+// Store images
+$path = $request->image->store('images', 'public');
+$path_1 = $request->image2->store('images', 'public');
+
+// Set attributes
+$blog->title = $request->title;
+$blog->image = $path;
+$blog->image2 = $path_1;
+$blog->content = $request->content;
+$blog->user_id = Auth::id();
+
+// Optional images
+if($request->image3) {
+    $path_2 = $request->image3->store('images', 'public');
+    $blog->image3 = $path_2;
+}
+
+$blog->save();
+```
+</CodeGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Image Upload Fails" icon="exclamation-triangle">
+    **Possible causes:**
+    - File size too large (check PHP upload limits)
+    - Storage directory not writable
+    - Invalid file format
+    
+    **Solutions:**
+    - Check `storage/app/public` permissions (should be 755)
+    - Run `php artisan storage:link` to create symlink
+    - Verify `php.ini` settings:
+      - `upload_max_filesize = 10M`
+      - `post_max_size = 10M`
+    - Ensure file is a valid image format
+  </Accordion>
+  
+  <Accordion title="Content Not Displaying Correctly" icon="code">
+    **Possible causes:**
+    - HTML not properly escaped in view
+    - Missing closing tags in content
+    - CSS conflicts
+    
+    **Solutions:**
+    - Use `{!! $blog->content !!}` to render HTML (not `{{ }}` which escapes)
+    - Validate HTML before saving
+    - Check for conflicting CSS styles
+    - Test content in preview mode
+  </Accordion>
+  
+  <Accordion title="Blog Not Visible on Public Site" icon="eye-slash">
+    **Check:**
+    - Is `published = 1`? Blogs with `published = 0` are drafts
+    - Clear application cache: `php artisan cache:clear`
+    - Verify route is functioning: visit `/blogs` directly
+  </Accordion>
+  
+  <Accordion title="Cannot Edit or Delete Blog" icon="lock">
+    **Requirements:**
+    - Must be logged in (`auth` middleware)
+    - Email must be verified (`verified` middleware)
+    - Blog must exist in database
+    
+    If you see "403 Forbidden" or are redirected to login, verify your authentication status.
+  </Accordion>
+  
+  <Accordion title="Image Update Issues" icon="sync">
+    **Known Issue:** The update method tries to store all 6 images if any image is uploaded
+    
+    **Current behavior:**
+    ```php
+    if($request->hasFile('image') || ... any image) {
+        // Tries to store ALL images
+        $path = $request->image->store(...);
+        $path2 = $request->image2->store(...); // Error if not provided
+    }
+    ```
+    
+    **Workaround:** Upload all images when updating, or don't upload any images to keep existing ones
+    
+    **Recommended fix:** Check each image individually:
+    ```php
+    if($request->hasFile('image')) {
+        $blog->image = $request->image->store('images', 'public');
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Integration with Homepage
+
+Blogs appear on various pages:
+
+### Homepage Blog Section
+
+Most pages include recent blog posts:
+
+```php
+$blogs = Blog::latest()->limit(2)->get();
+```
+
+This displays the 2 most recent blog posts in the sidebar or footer.
+
+### Blog Archive
+
+The main blog page shows paginated blog posts:
+
+```php
+$coverBlogs = Blog::latest()->paginate(6);
+```
+
+Displays 6 blog posts per page, sorted by newest first.
+
+### Related Blogs
+
+Single blog pages show related content:
+
+```php
+$coverBlogs = Blog::latest()->limit(4)->get();
+```
+
+Shows 4 other recent blog posts for cross-promotion.
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Managing Tours" icon="map" href="/admin/managing-tours">
+    Link to tours from blog posts
+  </Card>
+  
+  <Card title="Publishing Workflow" icon="rocket" href="/admin/publishing-workflow">
+    Learn about publishing and unpublishing content
+  </Card>
+  
+  <Card title="Managing Videos" icon="video" href="/admin/managing-videos">
+    Add video content alongside blogs
+  </Card>
+  
+  <Card title="User Roles" icon="shield" href="/admin/user-roles">
+    Understand permissions for blog management
+  </Card>
+</CardGroup>

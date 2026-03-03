@@ -1,0 +1,429 @@
+---
+title: Making Safari Bookings
+description: Complete guide to the booking process on Safaris Web
+---
+
+## Overview
+
+This guide walks you through the entire booking process from selecting a tour to receiving confirmation. The booking system is secure, straightforward, and designed to capture all necessary information for your safari.
+
+<Warning>
+  **Prerequisites**: You must be logged in with a verified email address to make bookings. Routes use both `auth` and `verified` middleware.
+</Warning>
+
+## Booking Process
+
+<Steps>
+  <Step title="Select Your Safari">
+    From the tour detail page (`/addtour/show/{id}`), click the **Book Now** button. This navigates to:
+    
+    **Route:** `/bookings/create/{destination}`
+    
+    **Controller:** `BookingController::create($destination)`
+    
+    The destination parameter is the tour name, automatically passed to the booking form.
+  </Step>
+  
+  <Step title="Review Pre-Booking Information">
+    The booking page displays:
+    - Selected destination/tour name
+    - 3 latest tours (for reference)
+    - All available categories
+    - Recent blog posts
+    
+    <Info>
+      If you're not logged in, you'll be redirected to the login page with the message: "You must be logged in to book a destination."
+    </Info>
+  </Step>
+  
+  <Step title="Complete the Booking Form">
+    Fill out all required fields in the booking form (see detailed breakdown below)
+  </Step>
+  
+  <Step title="Verify and Submit">
+    Complete the reCAPTCHA verification and submit the form via POST to `/bookings/new`
+  </Step>
+  
+  <Step title="Receive Confirmation">
+    Upon successful booking:
+    - Redirected to your profile at `/profile`
+    - Success message: "Booking has been successful, We will contact you within 24hrs!"
+    - Booking appears in your booking history
+  </Step>
+</Steps>
+
+## Booking Form Fields
+
+### Personal Information
+
+<Tabs>
+  <Tab title="Required Fields">
+    **First Name**
+    - Validation: `required`
+    - Database field: `first_name` (string)
+    
+    **Last Name**
+    - Validation: `required`
+    - Database field: `last_name` (string)
+    
+    **Email Address (Enter Twice)**
+    - Validation: Both entries must match
+    - Fields: `email1` and `email2`
+    - Database field: `email` (string)
+    - Used for booking confirmation communication
+    
+    <Warning>
+      If email addresses don't match: "Please provide matching emails" error is returned
+    </Warning>
+    
+    **Phone Number**
+    - Validation: `required`
+    - Database field: `phone_number` (string)
+    - International format recommended
+    
+    **Country**
+    - Validation: Required
+    - Database field: `country` (string)
+    - Your country of residence
+  </Tab>
+  
+  <Tab title="Travel Details">
+    **Arrival Date**
+    - Validation: `required`
+    - Database field: `arrival_date` (date)
+    - Format: YYYY-MM-DD
+    - When you plan to start your safari
+    
+    **Number of Adults**
+    - Validation: `required`
+    - Database field: `adults` (string)
+    - Enter numeric value
+    - Affects total booking cost
+    
+    **Number of Kids**
+    - Validation: `required`
+    - Database field: `kids` (string)
+    - Enter numeric value (use 0 if no children)
+    - May affect pricing and requirements
+    
+    **Destination**
+    - Validation: `required`
+    - Database field: `destination` (string)
+    - Auto-filled from selected tour
+    - Can be modified if needed
+  </Tab>
+  
+  <Tab title="Payment & Special Needs">
+    **Transaction Code**
+    - Validation: `required`
+    - Database field: `transaction_code` (string)
+    - Payment reference or transaction ID
+    - Used to track your payment
+    
+    <Tip>
+      Keep your transaction code secure. You'll need it to reference your booking.
+    </Tip>
+    
+    **Special Requirements**
+    - Validation: Optional
+    - Database field: `special_requirements` (text)
+    - Examples:
+      - Dietary restrictions (vegetarian, halal, allergies)
+      - Accessibility needs
+      - Special occasions (honeymoon, anniversary)
+      - Age-specific requirements
+      - Medical considerations
+  </Tab>
+  
+  <Tab title="Security">
+    **reCAPTCHA Verification**
+    - Validation: `required|captcha`
+    - Field: `g-recaptcha-response`
+    - Prevents automated submissions
+    - Must be completed for form submission
+    
+    <Note>
+      The reCAPTCHA protects against spam bookings and ensures legitimate user submissions.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Form Validation Rules
+
+The booking form validates all inputs using Laravel validation:
+
+```php
+$request->validate([
+    'first_name' => 'required',
+    'last_name' => 'required',
+    'phone_number' => 'required',
+    'arrival_date' => 'required',
+    'adults' => 'required',
+    'kids' => 'required',
+    'destination' => 'required',
+    'g-recaptcha-response' => 'required|captcha',
+    'transaction_code' => 'required'
+]);
+```
+
+**Additional validation:**
+- Email matching: `if($request->email1 == $request->email2)` check in controller
+
+<Warning>
+  If any required field is missing or validation fails, the form will display error messages and won't submit.
+</Warning>
+
+## Booking Storage Process
+
+When you submit the form (route: `/bookings/new`, method: POST):
+
+<Steps>
+  <Step title="Validation">
+    All form fields are validated according to rules
+  </Step>
+  
+  <Step title="Email Verification">
+    System checks if `email1` matches `email2`
+  </Step>
+  
+  <Step title="Booking Creation">
+    A new `Booking` model instance is created with your data:
+    
+    ```php
+    $booking = new Booking;
+    $booking->first_name = $request->first_name;
+    $booking->last_name = $request->last_name;
+    $booking->email = $email;
+    $booking->arrival_date = $request->arrival_date;
+    $booking->adults = $request->adults;
+    $booking->kids = $request->kids;
+    $booking->phone_number = $request->phone_number;
+    $booking->country = $request->country;
+    $booking->destination = $request->destination;
+    $booking->transaction_code = $request->transaction_code;
+    $booking->special_requirements = $request->special_requirements;
+    $booking->user_id = Auth::user()->id;
+    $booking->save();
+    ```
+  </Step>
+  
+  <Step title="User Association">
+    The booking is linked to your user account via `user_id` field
+  </Step>
+  
+  <Step title="Redirect & Confirmation">
+    You're redirected to `/profile` with a success message
+  </Step>
+</Steps>
+
+## Booking Data Structure
+
+Your booking is stored in the `tour_bookings` table with this structure:
+
+| Field | Type | Description | Default |
+|-------|------|-------------|--------|
+| `id` | Integer | Unique booking ID | Auto |
+| `transaction_code` | String | Payment reference | - |
+| `first_name` | String | Traveler first name | - |
+| `last_name` | String | Traveler last name | - |
+| `email` | String | Contact email | - |
+| `phone_number` | String | Contact phone | - |
+| `country` | String | Country of residence | - |
+| `arrival_date` | Date | Safari start date | - |
+| `adults` | String | Number of adults | - |
+| `kids` | String | Number of children | - |
+| `destination` | String | Tour/safari name | - |
+| `special_requirements` | Text | Special needs/requests | - |
+| `user_id` | Integer | Associated user account | - |
+| `status` | String | Booking status | 0 (pending) |
+| `created_at` | Timestamp | Booking creation time | Auto |
+| `updated_at` | Timestamp | Last update time | Auto |
+
+<Info>
+  **Status Field**: 0 = Pending confirmation, 1 = Confirmed by admin
+</Info>
+
+## After Booking Submission
+
+### What Happens Next
+
+<Steps>
+  <Step title="Immediate Confirmation">
+    Your booking is saved immediately in the database with status = 0 (pending)
+  </Step>
+  
+  <Step title="Profile Access">
+    View your booking in your profile at `/profile`
+    
+    Profile displays:
+    - All your bookings (paginated, 10 per page)
+    - Latest bookings first (`latest()` ordering)
+    - Full booking details
+  </Step>
+  
+  <Step title="Admin Review">
+    Admins receive notification of new booking and review it via `/bookings` route
+  </Step>
+  
+  <Step title="Confirmation Communication">
+    Within 24 hours, you'll be contacted via:
+    - Email (to the address provided)
+    - Phone (to the number provided)
+    - Booking status updated to 1 (confirmed)
+  </Step>
+</Steps>
+
+### Viewing Your Bookings
+
+**Profile Route:** `/profile`
+
+**Controller:** `BookingController::profile()`
+
+**What You See:**
+```php
+Booking::where('user_id', Auth::user()->id)->latest()->paginate(10)
+```
+
+Your profile shows:
+- All bookings linked to your account
+- Booking status (pending/confirmed)
+- Full booking details
+- Pagination controls (if you have more than 10 bookings)
+
+### Individual Booking Details
+
+**Route:** `/bookings/show/{id}`
+
+**Middleware:** `auth`, `verified`
+
+View complete details of any individual booking including:
+- All form data submitted
+- Booking timestamp
+- Current status
+- Transaction code
+
+## Editing Bookings
+
+If you need to modify a booking before confirmation:
+
+<Steps>
+  <Step title="Access Edit Page">
+    **Route:** `/bookings/edit/{id}`
+    
+    **Middleware:** `auth`, `verified`
+  </Step>
+  
+  <Step title="Update Information">
+    Modify any fields that need changes. Validation rules:
+    - `first_name` - required
+    - `last_name` - required
+    - `email` - required
+    - `phone_number` - required
+    - `arrival_date` - required
+    - `adults` - required
+    - `kids` - required
+  </Step>
+  
+  <Step title="Submit Update">
+    **Route:** `/bookings/update/{id}` (POST)
+    
+    **Middleware:** `auth`, `verified`
+    
+    Success message: "Booking updated successfully!"
+  </Step>
+</Steps>
+
+<Warning>
+  You can only edit bookings associated with your user account. The system checks `user_id` matches your account.
+</Warning>
+
+## Canceling Bookings
+
+**Route:** `/bookings/delete/{id}` (DELETE)
+
+**Middleware:** `auth`, `verified`
+
+If you need to cancel a booking:
+1. Access your profile
+2. Select the booking to cancel
+3. Click delete/cancel
+4. Confirmation message: "Booking deleted successfully!"
+
+<Note>
+  Deleted bookings are removed from the database. Contact support if you need to reference a canceled booking.
+</Note>
+
+## Common Booking Issues
+
+<AccordionGroup>
+  <Accordion title="Email Mismatch Error">
+    **Error:** "Please provide matching emails"
+    
+    **Solution:** Carefully re-enter both email fields. They must match exactly (case-sensitive, no extra spaces).
+  </Accordion>
+  
+  <Accordion title="reCAPTCHA Fails">
+    **Error:** Validation error on `g-recaptcha-response`
+    
+    **Solution:** 
+    - Ensure you've clicked the reCAPTCHA checkbox
+    - Try refreshing if it's not loading
+    - Check your internet connection
+  </Accordion>
+  
+  <Accordion title="Redirected to Login">
+    **Issue:** Form redirects to login page
+    
+    **Solution:** 
+    - Your session may have expired - login again
+    - Ensure you're logged in before accessing `/bookings/create/{destination}`
+    - Check that your email is verified at `/email/verify`
+  </Accordion>
+  
+  <Accordion title="Can't Access Booking Form">
+    **Issue:** 403 or redirect when trying to book
+    
+    **Solution:**
+    - Verify your email address (check inbox for verification link)
+    - Login to your account
+    - The route requires both `auth` and `verified` middleware
+  </Accordion>
+</AccordionGroup>
+
+## Security & Privacy
+
+<CardGroup cols={2}>
+  <Card title="Data Protection" icon="shield">
+    - All bookings linked to authenticated users
+    - CSRF protection on all forms
+    - User ID verification for all operations
+  </Card>
+  
+  <Card title="Email Verification" icon="envelope-circle-check">
+    - Email must be verified before booking
+    - Laravel's `MustVerifyEmail` interface
+    - Verified middleware on booking routes
+  </Card>
+  
+  <Card title="Transaction Security" icon="lock">
+    - Transaction codes stored securely
+    - No payment card data stored
+    - Reference numbers for payment tracking
+  </Card>
+  
+  <Card title="Personal Data" icon="user-shield">
+    - Only you can access your bookings
+    - User ID filtering on profile queries
+    - Secure session management
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<Card title="Manage Your Profile" icon="user-gear" href="/user-guide/profile-management">
+  Learn how to manage your profile and view booking history
+</Card>
+
+<Tip>
+  **Pro Tip**: Save your transaction code in a safe place. You'll need it for payment verification and booking reference.
+</Tip>

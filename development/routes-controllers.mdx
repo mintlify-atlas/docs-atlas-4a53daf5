@@ -1,0 +1,597 @@
+---
+title: Routes & Controllers
+description: Route structure, controller organization, and middleware usage in Safaris Web
+---
+
+## Overview
+
+Safaris Web defines all web routes in `~/workspace/source/routes/web.php` and organizes functionality through dedicated controllers in `~/workspace/source/app/Http/Controllers/`.
+
+## Route Structure
+
+The application routes are organized by feature area in `web.php`.
+
+### Public Routes
+
+#### Static Pages
+
+```php routes/web.php:34-46
+Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/about', [HomeController::class, 'about'])->name('about');
+Route::get('/careers', [HomeController::class, 'careers'])->name('careers');
+Route::get('/awards', [HomeController::class, 'awards'])->name('awards');
+Route::get('/faqs', [HomeController::class, 'faqs'])->name('faqs');
+Route::get('/help', [HomeController::class, 'help'])->name('help');
+Route::get('/team', [HomeController::class, 'team'])->name('team');
+Route::get('/policy', [HomeController::class, 'policy'])->name('policy');
+Route::get('/testimonies', [HomeController::class, 'testimony'])->name('testimony');
+Route::get('/travel-info', [HomeController::class, 'travel'])->name('travel');
+Route::get('/affiliation', [HomeController::class, 'affiliation'])->name('affiliation');
+Route::get('/media', [HomeController::class, 'media'])->name('media');
+Route::get('/blog', [HomeController::class, 'blog'])->name('blog');
+```
+
+#### Public Tour Routes
+
+```php routes/web.php:67-103
+// Safari listing page
+Route::get("/safaris", [ToursController::class, 'safaris'])->name("safaris");
+
+// Tour detail page
+Route::get('/addtour/show/{id}', [ToursController::class, 'show'])->name('addtour.show');
+
+// Dynamic category routes
+Route::get('/tours/{category}', [HomeController::class, 'tours'])->name('tour');
+Route::get('/tours/categories/{sub_category}', [HomeController::class, 'tour_cat'])->name('tour_cat');
+
+// Search
+Route::get('/search', [HomeController::class, 'search'])->name('search');
+```
+
+### Protected Routes (Authentication Required)
+
+Routes with `middleware(['auth', 'verified'])` require logged-in users with verified email.
+
+#### Admin Dashboard
+
+```php routes/web.php:50-51
+Route::get('/admin', [ToursController::class, 'admin'])
+    ->name('admin')
+    ->middleware('auth');
+    
+Route::get('/dashboard', [HomeController::class, 'admin'])
+    ->name('dashboard')
+    ->middleware('auth');
+```
+
+#### Tour Management
+
+```php routes/web.php:68-76
+Route::get('/addtour', [ToursController::class, 'index'])
+    ->name('tours')
+    ->middleware(['auth', 'verified']);
+    
+Route::get('/addtour/create', [ToursController::class, 'create'])
+    ->name('addtour.create')
+    ->middleware(['auth', 'verified']);
+    
+Route::post('/addtour/store', [ToursController::class, 'store'])
+    ->name('addtour.store')
+    ->middleware(['auth', 'verified']);
+    
+Route::get('/addtour/edit/{id}', [ToursController::class, 'edit'])
+    ->name('addtour.edit')
+    ->middleware(['auth', 'verified']);
+    
+Route::post('/addtour/update/{id}', [ToursController::class, 'update'])
+    ->name('addtour.update')
+    ->middleware(['auth', 'verified']);
+    
+Route::delete('/addtour/delete/{id}', [ToursController::class, 'destroy'])
+    ->name('addtour.delete')
+    ->middleware(['auth', 'verified']);
+    
+Route::put('/addtour/publish/{id}', [ToursController::class, 'publish'])
+    ->name('addtour.publish')
+    ->middleware(['auth', 'verified']);
+```
+
+#### Booking Management
+
+```php routes/web.php:57-64
+Route::get('/bookings', [BookingController::class, 'index'])
+    ->name('bookings')
+    ->middleware(['auth', 'verified']);
+    
+Route::get('/bookings/show/{id}', [BookingController::class, 'show'])
+    ->name('bookings.show')
+    ->middleware(['auth', 'verified']);
+    
+Route::get('/bookings/create/{destination}', [BookingController::class, 'create'])
+    ->name('bookings.create');
+    
+Route::post('/bookings/new', [BookingController::class, 'store'])
+    ->name('bookings.store')
+    ->middleware(['auth', 'verified']);
+```
+
+### Resource Routes
+
+Laravel's resource routes provide RESTful CRUD operations:
+
+```php routes/web.php:53,117
+Route::resource('enquiries', EnquiryController::class);
+Route::resource('highlights', HighlightController::class);
+```
+
+This creates the following routes:
+
+| HTTP Method | URI | Action | Route Name |
+|-------------|-----|--------|------------|
+| GET | /enquiries | index | enquiries.index |
+| GET | /enquiries/create | create | enquiries.create |
+| POST | /enquiries | store | enquiries.store |
+| GET | /enquiries/{id} | show | enquiries.show |
+| GET | /enquiries/{id}/edit | edit | enquiries.edit |
+| PUT/PATCH | /enquiries/{id} | update | enquiries.update |
+| DELETE | /enquiries/{id} | destroy | enquiries.destroy |
+
+### Products, Services, Events & Accommodations
+
+These follow a similar pattern:
+
+```php routes/web.php:147-194
+// Products
+Route::get("/all-products", [ProductController::class, "all"])->middleware(['auth', 'verified']);
+Route::get("/products", [ProductController::class, "index"]);
+Route::get("/product/new", [ProductController::class, "create"])->middleware(['auth', 'verified']);
+Route::post("/product/create", [ProductController::class, "store"])->middleware(['auth', 'verified']);
+Route::get("/product/{slug}", [ProductController::class, "show"]);
+Route::put("/product/publish/{id}", [ProductController::class, "publish"])->middleware(['auth', 'verified']);
+
+// Services
+Route::get("/services", [ServiceController::class, "index"]);
+Route::get("/service/{slug}", [ServiceController::class, "show"]);
+// ... more service routes
+
+// Events
+Route::get("/events", [EventController::class, "index"]);
+Route::get("/event/{slug}", [EventController::class, "show"]);
+// ... more event routes
+
+// Accommodations
+Route::get("/accomodations", [AccomodationController::class, "index"]);
+Route::get("/accomodation/{slug}", [AccomodationController::class, "show"]);
+// ... more accommodation routes
+```
+
+## Controller Organization
+
+### HomeController
+
+**Location**: `~/workspace/source/app/Http/Controllers/HomeController.php`
+
+**Purpose**: Handles static pages and homepage functionality.
+
+**Key Methods**:
+- `index()` - Homepage with featured tours
+- `about()`, `careers()`, `faqs()`, etc. - Static pages
+- `search()` - Tour search functionality
+- `tours($category)` - Tours by category
+- `admin()` - Admin dashboard
+
+### ToursController
+
+**Location**: `~/workspace/source/app/Http/Controllers/ToursController.php`
+
+**Purpose**: Complete tour package management.
+
+#### Key Methods
+
+<CodeGroup>
+
+```php Public Methods
+// Public safari listing
+public function safaris()
+{
+    $categories = Category::all();
+    $blogs = Blog::latest()->limit(2)->get();
+    $safaris = Tours::inRandomOrder()->paginate(20);
+    return view("safaris.index", compact("categories", "blogs", "safaris"));
+}
+
+// Tour detail page
+public function show($id)
+{
+    $tours = Tours::find($id);
+    $categories = Category::all();
+    $blogs = Blog::all();
+    return view('tours.show', compact('tours'), [
+        'categories' => $categories,
+        'blogs' => $blogs
+    ]);
+}
+```
+
+```php Admin Methods
+// List all tours (admin)
+public function index()
+{
+    $tours = Tours::latest()->paginate(20);
+    return view('tours.index', compact('tours'))
+        ->with('i', (request()->input('page', 1) - 1) * 5);
+}
+
+// Create form
+public function create()
+{
+    $categories = Category::all();
+    return view('tours.create', ['categories' => $categories]);
+}
+
+// Store new tour
+public function store(Request $request)
+{
+    $request->validate([
+        'hotel' => 'required',
+        'transport' => 'required',
+        'image' => 'required|mimes:jpg,jpeg,svg,png,webp',
+        // ... more validation
+    ]);
+    
+    $tours = new Tours;
+    $path = $request->image->store('images', 'public');
+    // ... handle multiple images
+    $tours->hotel = $request->hotel;
+    $tours->user_id = Auth::id();
+    $tours->save();
+    
+    return redirect()->route('tours')
+        ->with('success', 'You Added a Tour.');
+}
+```
+
+```php Custom Methods
+// Toggle publish status
+public function publish($id)
+{
+    $tour = Tours::find($id);
+    
+    if ($tour->published == 0) {
+        $tour->published = 1;
+        $tour->update();
+    } else {
+        $tour->published = 0;
+        $tour->update();
+    }
+    
+    return redirect()->route('tours');
+}
+```
+
+</CodeGroup>
+
+### BookingController
+
+**Location**: `~/workspace/source/app/Http/Controllers/BookingController.php`
+
+**Purpose**: Customer booking management and user profiles.
+
+#### Key Methods
+
+```php
+// User's booking history
+public function profile()
+{
+    $bookings = Booking::where('user_id', Auth::user()->id)
+        ->latest()
+        ->paginate(10);
+    return view('users.profile', compact('bookings'))
+        ->with('i', (request()->input('page', 1) - 1) * 5);
+}
+
+// Booking form
+public function create($destination)
+{
+    $tours = Tours::latest()->limit(3)->get();
+    $categories = Category::all();
+    $blogs = Blog::all();
+    
+    return view('bookings.create', [
+        'categories' => $categories,
+        'tours' => $tours,
+        'blogs' => $blogs,
+        'destination' => $destination
+    ]);
+}
+
+// Store booking
+public function store(Request $request)
+{
+    $request->validate([
+        'first_name' => 'required',
+        'last_name' => 'required',
+        'phone_number' => 'required',
+        'arrival_date' => 'required',
+        'adults' => 'required',
+        'kids' => 'required',
+        'destination' => 'required',
+        'g-recaptcha-response' => 'required|captcha',
+        'transaction_code' => 'required'
+    ]);
+    
+    // Email validation
+    if($request->email1 == $request->email2) {
+        $email = $request->email1;
+    } else {
+        return redirect()->route('bookings.create')
+            ->with('failure', 'please provide matching emails');
+    }
+    
+    $booking = new Booking;
+    // ... set properties
+    $booking->user_id = Auth::user()->id;
+    $booking->save();
+    
+    return redirect()->route('profile')
+        ->with('success', 'Booking has been successfull, We will contact you within 24hrs!');
+}
+
+// Confirm booking (admin)
+public function confirm($id)
+{
+    $booking = Booking::find($id);
+    $booking->status = ($booking->status == 0) ? 1 : 0;
+    $booking->update();
+    
+    return redirect()->route('bookings');
+}
+```
+
+### BlogController
+
+**Location**: `~/workspace/source/app/Http/Controllers/BlogController.php`
+
+**Purpose**: Blog post management.
+
+**Route Pattern**: Similar to ToursController with CRUD operations.
+
+### Product, Service, Event, Accommodation Controllers
+
+**Locations**:
+- `ProductController.php`
+- `ServiceController.php`
+- `EventController.php`
+- `AccomodationController.php`
+
+**Common Pattern**: All follow similar structure:
+
+```php
+// Public listing
+public function index() { ... }
+
+// Show by slug
+public function show($slug) { ... }
+
+// Category filtering
+public function category($category) { ... }
+
+// Admin listing
+public function all() { ... } // middleware: auth, verified
+
+// Create, store, edit, update, destroy
+// All protected by middleware: ['auth', 'verified']
+
+// Publish toggle
+public function publish($id) { ... }
+```
+
+### CategoryController
+
+**Location**: `~/workspace/source/app/Http/Controllers/CategoryController.php`
+
+**Purpose**: Manage tour and product categories.
+
+**Routes**: Standard CRUD operations for category management.
+
+### EnquiryController
+
+**Location**: `~/workspace/source/app/Http/Controllers/EnquiryController.php`
+
+**Purpose**: Handle contact form submissions.
+
+**Route**: Resource controller for enquiries.
+
+### HighlightController
+
+**Location**: `~/workspace/source/app/Http/Controllers/HighlightController.php`
+
+**Purpose**: Manage homepage featured content.
+
+**Route**: Resource controller for highlights.
+
+### VideoController
+
+**Location**: `~/workspace/source/app/Http/Controllers/VideoController.php`
+
+**Purpose**: Manage video gallery URLs.
+
+### UserController
+
+**Location**: `~/workspace/source/app/Http/Controllers/UserController.php`
+
+**Purpose**: User management and profile updates.
+
+```php routes/web.php:138-141
+Route::get('/users', [UserController::class, 'users'])->name('users');
+Route::get('/users/update-user/{id}', [UserController::class, 'updateView'])->name('updatePage');
+Route::post('users/update/{id}', [UserController::class, 'update'])->name('updateUser');
+Route::delete('users/delete', [UserController::class, 'destroy'])->name('deleteUser');
+```
+
+## Middleware Usage
+
+### Global Middleware
+
+Defined in `~/workspace/source/app/Http/Kernel.php:16-24`:
+
+```php
+protected $middleware = [
+    \App\Http\Middleware\TrustProxies::class,
+    \Illuminate\Http\Middleware\HandleCors::class,
+    \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
+    \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
+    \App\Http\Middleware\TrimStrings::class,
+    \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+];
+```
+
+### Route Middleware
+
+Defined in `~/workspace/source/app/Http/Kernel.php:55-66`:
+
+```php
+protected $routeMiddleware = [
+    'auth' => \App\Http\Middleware\Authenticate::class,
+    'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+    'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
+    'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
+    // ... more middleware
+];
+```
+
+### Common Middleware Patterns
+
+<CodeGroup>
+
+```php Authentication Only
+Route::get('/admin', [HomeController::class, 'admin'])
+    ->middleware('auth');
+```
+
+```php Auth + Email Verification
+Route::get('/bookings', [BookingController::class, 'index'])
+    ->middleware(['auth', 'verified']);
+```
+
+```php Guest Only (Login/Register)
+Route::get('/login', [LoginController::class, 'showLoginForm'])
+    ->middleware('guest');
+```
+
+```php Rate Limiting
+Route::post('/email/verification-notification', function (Request $request) {
+    $request->user()->sendEmailVerificationNotification();
+    return back()->with('message', 'Verification link sent!');
+})->middleware(['auth', 'throttle:6,1']);
+```
+
+</CodeGroup>
+
+### Custom Middleware
+
+**Authenticate.php** (`~/workspace/source/app/Http/Middleware/Authenticate.php:15-20`):
+
+```php
+protected function redirectTo($request)
+{
+    if (! $request->expectsJson()) {
+        return route('login');
+    }
+}
+```
+
+Redirects unauthenticated users to login page.
+
+## Email Verification Routes
+
+```php routes/web.php:122-134
+// Verification notice
+Route::get('/email/verify', function () {
+    return view('auth.verify');
+})->middleware('auth')->name('verification.notice');
+
+// Verification handler
+Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
+    $request->fulfill();
+    return redirect('/');
+})->middleware(['auth', 'signed'])->name('verification.verify');
+
+// Resend verification
+Route::post('/email/verification-notification', function (Request $request) {
+    $request->user()->sendEmailVerificationNotification();
+    return back()->with('message', 'Verification link sent!');
+})->middleware(['auth', 'throttle:6,1'])->name('verification.send');
+```
+
+## Authentication Routes
+
+```php routes/web.php:120
+Auth::routes(['verify' => true]);
+```
+
+This generates:
+- `GET /login` - Login form
+- `POST /login` - Process login
+- `POST /logout` - Logout
+- `GET /register` - Registration form
+- `POST /register` - Process registration
+- `GET /password/reset` - Password reset request
+- `POST /password/email` - Send reset link
+- `GET /password/reset/{token}` - Reset password form
+- `POST /password/reset` - Process password reset
+
+## Route Naming
+
+All routes use named routes for easier URL generation:
+
+```php
+// In routes
+Route::get('/safaris', [ToursController::class, 'safaris'])->name('safaris');
+
+// In views
+<a href="{{ route('safaris') }}">View Safaris</a>
+
+// In controllers
+return redirect()->route('safaris');
+```
+
+## Controller Validation
+
+Controllers use Laravel's validation:
+
+```php
+$request->validate([
+    'hotel' => 'required',
+    'transport' => 'required',
+    'image' => 'required|mimes:jpg,jpeg,svg,png,webp',
+    'single_room' => 'required',
+    'per_person_sharing' => 'required',
+    'g-recaptcha-response' => 'required|captcha',
+]);
+```
+
+## File Upload Handling
+
+Example from ToursController.php:80-111:
+
+```php
+$tours = new Tours;
+$path = $request->image->store('images', 'public');
+$path1 = $request->image1->store('images', 'public');
+
+if($request->image2) {
+    $path2 = $request->image2->store('images', 'public');
+    $tours->image2 = $path2;
+}
+
+$tours->image = $path;
+$tours->image1 = $path1;
+$tours->save();
+```
+
+## Next Steps
+
+- Learn about [Blade Templates](/development/blade-templates)
+- Understand [Middleware Configuration](/development/middleware)
+- Explore [Adding Features](/development/adding-features)

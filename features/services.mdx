@@ -1,0 +1,622 @@
+---
+title: Services
+description: Additional services available on Safaris Web
+---
+
+## Overview
+
+Safaris Web offers additional services beyond tours, accommodations, and events. The Services feature provides individual, bookable services that enhance your Kenya travel experience.
+
+<Info>
+  Services are managed through the `Service` model (`app/Models/Service.php`) and stored in the `services` database table.
+</Info>
+
+## Service Structure
+
+From the `create_services_table` migration:
+
+### Database Schema
+
+<Tabs>
+  <Tab title="Basic Information">
+    | Field | Type | Required | Description |
+    |-------|------|----------|-------------|
+    | `id` | Integer | Auto | Unique identifier |
+    | `name` | String | Yes | Service name |
+    | `slug` | String | Yes | Unique URL identifier |
+    | `category` | String | Yes | Service type |
+    | `location` | String | Yes | Service location/availability |
+  </Tab>
+  <Tab title="Details & Pricing">
+    | Field | Type | Description |
+    |-------|------|-------------|
+    | `description` | Text | Full service details |
+    | `price` | String | Service pricing |
+    
+    <Note>
+      Description field contains comprehensive information about what the service includes and how it works.
+    </Note>
+  </Tab>
+  <Tab title="Media">
+    | Field | Type | Required |
+    |-------|------|----------|
+    | `image` | String | Yes |
+    | `image2` | String | Yes |
+    
+    <Tip>
+      Services require 2 images to showcase what's offered
+    </Tip>
+  </Tab>
+  <Tab title="Management">
+    | Field | Type | Default |
+    |-------|------|--------|
+    | `user_id` | Integer | - |
+    | `published` | Integer | 0 |
+    | `created_at` | Timestamp | Auto |
+    | `updated_at` | Timestamp | Auto |
+  </Tab>
+</Tabs>
+
+## Service Categories
+
+Services are organized into categories for easy browsing:
+
+<CardGroup cols={2}>
+  <Card title="Transportation" icon="van-shuttle">
+    Airport transfers, private car hire, shuttle services
+  </Card>
+  <Card title="Guide Services" icon="user-tie">
+    Professional guides, interpreters, safari guides
+  </Card>
+  <Card title="Photography" icon="camera">
+    Professional photography, videography services
+  </Card>
+  <Card title="Equipment Rental" icon="tent">
+    Camping gear, binoculars, photography equipment
+  </Card>
+  <Card title="Visa & Documentation" icon="passport">
+    Visa assistance, documentation services
+  </Card>
+  <Card title="Special Experiences" icon="star">
+    Hot air balloons, helicopter tours, special add-ons
+  </Card>
+</CardGroup>
+
+**Category Filtering:**
+- Route: `/service/category/{category}`
+- Controller: `ServiceController::category($category)`
+
+## Browsing Services
+
+### Main Services Page
+
+**Route:** `/services`
+
+**Controller:** `ServiceController::index()`
+
+**Display Logic:**
+```php
+$services = Service::orderBy('id','desc')->get();
+```
+
+**Features:**
+- All published services displayed
+- Ordered by most recent first
+- Category filters available
+- Image previews for each service
+
+### Homepage Display
+
+Services are featured on the homepage:
+
+**Route:** `/`
+
+**Controller:** `HomeController::index()`
+
+**Query:**
+```php
+$services = Service::orderBy('id','desc')->get();
+```
+
+<Info>
+  Latest services appear on homepage to showcase new offerings and enhance discoverability.
+</Info>
+
+## Service Detail Page
+
+**Route:** `/service/{slug}`
+
+**Controller:** `ServiceController::show($slug)`
+
+<Steps>
+  <Step title="Access via Slug">
+    Each service has a unique slug for SEO-friendly URLs
+    
+    Example: `/service/airport-transfer-nairobi`
+  </Step>
+  <Step title="View Complete Information">
+    - Service name and category
+    - Full description
+    - Location/availability
+    - Price information
+    - Both service images
+  </Step>
+  <Step title="Booking Information">
+    Description includes how to book or contact for booking
+  </Step>
+</Steps>
+
+### Service Information Display
+
+<Tabs>
+  <Tab title="Service Details">
+    **Name & Category**
+    - Service title/name
+    - Category classification
+    - Service type indicator
+    
+    **Location**
+    - Where service is available
+    - Service area or coverage
+    - Availability zones
+  </Tab>
+  <Tab title="Description">
+    **Comprehensive Information:**
+    - Service overview
+    - What's included
+    - What's not included
+    - Duration or time requirements
+    - Requirements from customer
+    - Booking process
+    - Cancellation policy
+    - Terms and conditions
+    - Special instructions
+  </Tab>
+  <Tab title="Pricing">
+    **Price Field** (string format):
+    - Per service pricing
+    - Per hour/day pricing
+    - Flat rates
+    - Variable rates
+    - Group discounts
+    - Package deals
+    - What's included in price
+    
+    <Note>
+      Flexible text format accommodates various pricing models (per hour, per day, flat rate, etc.)
+    </Note>
+  </Tab>
+</Tabs>
+
+## Service Model
+
+### Model Definition
+
+From `app/Models/Service.php`:
+
+```php
+class Service extends Model
+{
+    use HasFactory;
+}
+```
+
+<Info>
+  The Service model uses Laravel's mass assignment protection by default. All fields are guarded except those explicitly made fillable.
+</Info>
+
+### Unique Features
+
+<AccordionGroup>
+  <Accordion title="Slug-Based URLs">
+    Services use slugs for clean URLs:
+    - Unique slug field (database constraint)
+    - Format: `/service/{slug}`
+    - SEO-friendly
+    - Memorable and shareable
+  </Accordion>
+  <Accordion title="Flexible Offerings">
+    Services can be:
+    - One-time services (airport transfer)
+    - Recurring services (daily guide)
+    - Rental services (equipment)
+    - Add-on experiences (balloon rides)
+    
+    This flexibility makes Services distinct from fixed-itinerary Tours.
+  </Accordion>
+  <Accordion title="Standalone or Combined">
+    Services work:
+    - As standalone bookings
+    - Combined with tours
+    - Added to existing packages
+    - Customized for specific needs
+  </Accordion>
+</AccordionGroup>
+
+## Filtering Services
+
+### By Category
+
+**Route:** `/service/category/{category}`
+
+**Controller:** `ServiceController::category($category)`
+
+<Steps>
+  <Step title="Select Category">
+    Click category filter or navigate to:
+    - `/service/category/Transportation`
+    - `/service/category/Guide Services`
+    - `/service/category/Equipment Rental`
+  </Step>
+  <Step title="View Category Services">
+    All services in selected category displayed
+  </Step>
+  <Step title="Compare Options">
+    Review pricing, locations, and descriptions
+  </Step>
+</Steps>
+
+<Tip>
+  Use category filtering to quickly find the type of service you need without browsing all services.
+</Tip>
+
+## Admin Management Routes
+
+<Tabs>
+  <Tab title="View All">
+    **Admin View:**
+    - Route: `/all-services`
+    - Controller: `ServiceController::all()`
+    - Middleware: `auth`, `verified`
+    - Shows all services including unpublished
+  </Tab>
+  <Tab title="Create">
+    **New Service:**
+    - Form: `/service/new` (GET)
+    - Submit: `/service/create` (POST)
+    - Middleware: `auth`, `verified`
+    - Requires: name, category, location, description, price, 2 images
+  </Tab>
+  <Tab title="Edit">
+    **Update Service:**
+    - Form: `/service/edit/{id}` (GET)
+    - Update: `/service/update/{id}` (PUT)
+    - Middleware: `auth`, `verified`
+  </Tab>
+  <Tab title="Publish">
+    **Toggle Status:**
+    - Route: `/service/publish/{id}` (PUT)
+    - Toggles `published` between 0 and 1
+    - Middleware: `auth`, `verified`
+  </Tab>
+  <Tab title="Delete">
+    **Remove Service:**
+    - Route: `/service/delete/{id}` (DELETE)
+    - Permanently removes service
+    - Middleware: `auth`, `verified`
+  </Tab>
+</Tabs>
+
+<Warning>
+  All admin routes require authentication and email verification. Regular users cannot create or manage services.
+</Warning>
+
+## Common Service Types
+
+### Transportation Services
+
+<Tabs>
+  <Tab title="Airport Transfers">
+    - Pick-up and drop-off services
+    - Nairobi Jomo Kenyatta International Airport
+    - Mombasa Moi International Airport
+    - Private car or shared shuttle
+    - Fixed pricing by destination
+  </Tab>
+  <Tab title="Car Hire">
+    - Self-drive vehicle rental
+    - Chauffeur-driven options
+    - 4x4 vehicles for safari
+    - Daily or weekly rates
+    - Fuel inclusions
+  </Tab>
+  <Tab title="Inter-City Transport">
+    - Travel between cities
+    - Safari vehicle with driver
+    - Group transport options
+    - Flexible scheduling
+  </Tab>
+</Tabs>
+
+### Guide Services
+
+<Tabs>
+  <Tab title="Safari Guides">
+    - Professional wildlife guides
+    - Experienced and licensed
+    - Knowledge of parks and reserves
+    - Language options available
+    - Daily or per-safari rates
+  </Tab>
+  <Tab title="Cultural Guides">
+    - Local community guides
+    - Cultural interpretation
+    - Language translation
+    - Authentic experiences
+    - Hourly or day rates
+  </Tab>
+  <Tab title="Mountain Guides">
+    - Mt. Kenya climbing guides
+    - Hiking leaders
+    - Safety and navigation
+    - Required for certain routes
+    - Per climb pricing
+  </Tab>
+</Tabs>
+
+### Equipment & Rentals
+
+<CardGroup cols={2}>
+  <Card title="Camping Gear" icon="campground">
+    Tents, sleeping bags, cooking equipment for camping safaris
+  </Card>
+  <Card title="Optical Equipment" icon="binoculars">
+    Binoculars, spotting scopes for wildlife viewing
+  </Card>
+  <Card title="Photography Gear" icon="camera">
+    Telephoto lenses, tripods, camera accessories
+  </Card>
+  <Card title="Safety Equipment" icon="shield">
+    First aid kits, GPS devices, communication equipment
+  </Card>
+</CardGroup>
+
+### Special Experiences
+
+<AccordionGroup>
+  <Accordion title="Hot Air Balloon Safari">
+    - Dawn flights over Masai Mara or other parks
+    - 1-hour flight duration
+    - Champagne breakfast included
+    - Pre-booking required
+    - Weather dependent
+    - Premium pricing
+  </Accordion>
+  <Accordion title="Helicopter Tours">
+    - Scenic flights
+    - Park overviews
+    - Quick transfers to remote areas
+    - Per person or per flight pricing
+    - Advance booking essential
+  </Accordion>
+  <Accordion title="Photography Services">
+    - Professional photographer for your safari
+    - Capture wildlife and memories
+    - Edited photo package
+    - Daily or per-safari rates
+  </Accordion>
+  <Accordion title="Bush Dining">
+    - Private dining in the bush
+    - Romantic dinners
+    - Special occasions
+    - Custom menus
+    - Setup and service included
+  </Accordion>
+</AccordionGroup>
+
+## Pricing Structure
+
+**Price Field** (string format) can include:
+
+<Tabs>
+  <Tab title="Time-Based">
+    - **Per Hour:** "$25 per hour"
+    - **Per Day:** "$100 per day"
+    - **Half Day:** "$60 for half day (4 hours)"
+    - **Hourly Range:** "$20-$40 per hour depending on vehicle"
+  </Tab>
+  <Tab title="Flat Rate">
+    - **Per Service:** "$150 flat rate"
+    - **Per Transfer:** "$80 airport to city center"
+    - **Per Experience:** "$450 per person for balloon safari"
+  </Tab>
+  <Tab title="Package Deals">
+    - **Multi-Day:** "$500 for 5-day guide service"
+    - **Bundle:** "$200 for full camping gear set"
+    - **Group:** "$800 for group of 6"
+  </Tab>
+  <Tab title="Variable">
+    - **Based on Distance:** "$1 per kilometer"
+    - **Based on Duration:** "Call for pricing"
+    - **Custom Quote:** "Contact for customized pricing"
+  </Tab>
+</Tabs>
+
+<Note>
+  The flexible string format for price allows services to communicate various pricing models clearly.
+</Note>
+
+## Service Images
+
+### Image Requirements
+
+**Two Required Images:**
+
+<CardGroup cols={2}>
+  <Card title="Primary Image" icon="image">
+    Main service visual - vehicle, guide, equipment, or experience in action
+  </Card>
+  <Card title="Secondary Image" icon="images">
+    Supporting visual - details, alternative view, or additional context
+  </Card>
+</CardGroup>
+
+**Technical Details:**
+- Storage: Laravel public storage (`storage/images`)
+- Fields: `image`, `image2`
+- Both images required
+- Formats: JPG, JPEG, PNG, SVG, WebP
+
+### Image Purpose
+
+<Tabs>
+  <Tab title="For Transportation">
+    - Vehicle exterior and interior
+    - Vehicle type and condition
+    - Driver/guide if included
+  </Tab>
+  <Tab title="For Guides">
+    - Professional guide photos
+    - Guide in action (with clients or wildlife)
+    - Credentials or certifications
+  </Tab>
+  <Tab title="For Equipment">
+    - Clear product photos
+    - Equipment in use
+    - Quality and condition
+  </Tab>
+  <Tab title="For Experiences">
+    - Activity in progress
+    - Results or outcomes
+    - Happy customers
+  </Tab>
+</Tabs>
+
+## Location Information
+
+**Location Field** indicates:
+
+- Where service is available
+- Coverage area
+- Starting point
+- Service regions
+
+**Examples:**
+- "Nairobi - Citywide"
+- "Masai Mara National Reserve"
+- "All National Parks in Kenya"
+- "Coastal Region - Mombasa, Diani, Watamu"
+- "Mt. Kenya - All Routes"
+
+<Info>
+  Clear location information helps users determine if the service is available in their destination area.
+</Info>
+
+## Integration with Other Features
+
+<CardGroup cols={2}>
+  <Card title="Enhance Tours" icon="plus">
+    Add services to existing tour packages (guides, special experiences)
+  </Card>
+  <Card title="Support Accommodations" icon="link">
+    Transportation services connect accommodations to attractions
+  </Card>
+  <Card title="Event Add-Ons" icon="calendar-plus">
+    Services complement event bookings (transport to events, guides)
+  </Card>
+  <Card title="Custom Packages" icon="box">
+    Combine multiple services for personalized experiences
+  </Card>
+</CardGroup>
+
+## Services vs Other Features
+
+<Tabs>
+  <Tab title="vs Tours">
+    **Services:**
+    - Individual, modular offerings
+    - Add to existing plans
+    - Flexible scheduling
+    - Service-specific pricing
+    
+    **Tours:**
+    - Complete packages
+    - Fixed itineraries
+    - Multi-day experiences
+    - All-inclusive pricing
+  </Tab>
+  <Tab title="vs Accommodations">
+    **Services:**
+    - Activities and support
+    - Time-based or per-service
+    - Enhance travel experience
+    
+    **Accommodations:**
+    - Lodging focused
+    - Per night pricing
+    - Place to stay
+  </Tab>
+  <Tab title="vs Events">
+    **Services:**
+    - Available on-demand (subject to booking)
+    - Flexible timing
+    - Support services
+    
+    **Events:**
+    - Fixed dates and times
+    - Scheduled experiences
+    - Event-focused
+  </Tab>
+  <Tab title="vs Products">
+    **Services:**
+    - Service-based (doing)
+    - Time or experience based
+    - Often requires provider presence
+    
+    **Products:**
+    - Goods-based (physical items)
+    - Purchase and own
+    - One-time transaction
+  </Tab>
+</Tabs>
+
+<Tip>
+  **Build Your Perfect Trip:** Combine a tour package + accommodation + services (guide, transport, special experience) + event tickets for a fully customized Kenya adventure.
+</Tip>
+
+## Publishing Workflow
+
+<Steps>
+  <Step title="Create Service">
+    Admin creates service with all details and 2 images
+  </Step>
+  <Step title="Draft Status">
+    Initially `published = 0` (not visible to public)
+  </Step>
+  <Step title="Review">
+    Verify pricing, description, availability, images
+  </Step>
+  <Step title="Publish">
+    Set `published = 1` via publish route
+  </Step>
+  <Step title="Live">
+    Service appears on `/services` page and homepage
+  </Step>
+</Steps>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Book in Advance" icon="calendar">
+    Popular services (guides, special experiences) book quickly
+  </Card>
+  <Card title="Check Availability" icon="check-circle">
+    Confirm service availability in your destination area
+  </Card>
+  <Card title="Read Details" icon="book-open">
+    Review description for requirements and inclusions
+  </Card>
+  <Card title="Combine Strategically" icon="layer-group">
+    Add services that genuinely enhance your experience
+  </Card>
+</CardGroup>
+
+## Related Features
+
+<Card title="Tours & Safaris" icon="binoculars" href="/features/tours-safaris">
+  Explore complete safari packages that services can enhance
+</Card>
+
+<Note>
+  Services provide flexibility to customize your Kenya experience beyond standard packages.
+</Note>

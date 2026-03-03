@@ -1,122 +1,117 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Safaris Web",
+  "theme": "palm",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#2D7A4C",
+    "light": "#4CAF50",
+    "dark": "#1B5E34"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/WawinyEdwin/safaris-web"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/WawinyEdwin/safaris-web"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "system-requirements"
             ]
           },
           {
-            "group": "Customization",
+            "group": "User Guide",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "user-guide/browsing-tours",
+              "user-guide/making-bookings",
+              "user-guide/profile-management",
+              "user-guide/search-filters"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Features",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "features/tours-safaris",
+              "features/accommodations",
+              "features/events",
+              "features/services",
+              "features/blog-media"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Admin Guide",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Getting Started",
             "pages": [
-              "api-reference/introduction"
+              "admin/overview",
+              "admin/authentication",
+              "admin/user-roles"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Content Management",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "admin/managing-tours",
+              "admin/managing-bookings",
+              "admin/managing-blogs",
+              "admin/managing-videos",
+              "admin/managing-categories"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "admin/user-management",
+              "admin/enquiries",
+              "admin/publishing-workflow"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Setup",
+            "pages": [
+              "development/installation",
+              "development/configuration",
+              "development/database-setup"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "development/project-structure",
+              "development/models-relationships",
+              "development/routes-controllers"
+            ]
+          },
+          {
+            "group": "Customization",
+            "pages": [
+              "development/adding-features",
+              "development/blade-templates",
+              "development/middleware"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

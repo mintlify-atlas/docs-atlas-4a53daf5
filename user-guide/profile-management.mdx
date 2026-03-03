@@ -1,0 +1,410 @@
+---
+title: Profile Management
+description: Managing your user profile and viewing booking history on Safaris Web
+---
+
+## Overview
+
+Your profile is your central hub for managing bookings, viewing history, and maintaining your account information on Safaris Web. This guide covers all profile features and management capabilities.
+
+<Info>
+  **Profile Access:** `/profile` route requires authentication and email verification (`auth` and `verified` middleware).
+</Info>
+
+## Accessing Your Profile
+
+**Route:** `/profile`
+
+**Controller:** `BookingController::profile()`
+
+**Requirements:**
+- Must be logged in
+- Email must be verified
+- Active session
+
+<Steps>
+  <Step title="Login">
+    Access the login page at `/login` and enter your credentials
+  </Step>
+  <Step title="Navigate to Profile">
+    Click on your profile link or navigate directly to `/profile`
+  </Step>
+  <Step title="View Dashboard">
+    Your profile dashboard displays all your bookings and account information
+  </Step>
+</Steps>
+
+## Profile Dashboard
+
+### What's Displayed
+
+Your profile shows:
+
+<CardGroup cols={2}>
+  <Card title="Booking History" icon="clock-rotate-left">
+    All bookings associated with your account, most recent first
+  </Card>
+  <Card title="Booking Status" icon="chart-line">
+    Current status of each booking (pending or confirmed)
+  </Card>
+  <Card title="Quick Actions" icon="bolt">
+    View, edit, or cancel bookings directly from your profile
+  </Card>
+  <Card title="Pagination" icon="file-lines">
+    Navigate through your booking history (10 bookings per page)
+  </Card>
+</CardGroup>
+
+**Data Query:**
+```php
+Booking::where('user_id', Auth::user()->id)->latest()->paginate(10)
+```
+
+This ensures:
+- Only your bookings are displayed (filtered by `user_id`)
+- Latest bookings appear first (`latest()` ordering)
+- Manageable pagination (10 per page)
+
+## Booking History
+
+### Viewing Your Bookings
+
+Each booking in your history displays:
+
+<Tabs>
+  <Tab title="Traveler Information">
+    - **Name:** `first_name` + `last_name`
+    - **Email:** Contact email address
+    - **Phone:** `phone_number`
+    - **Country:** Your country of residence
+  </Tab>
+  <Tab title="Travel Details">
+    - **Destination:** Safari/tour name
+    - **Arrival Date:** When your safari starts
+    - **Adults:** Number of adult travelers
+    - **Kids:** Number of children
+    - **Special Requirements:** Any special needs noted
+  </Tab>
+  <Tab title="Booking Info">
+    - **Transaction Code:** Payment reference
+    - **Status:** 0 (pending) or 1 (confirmed)
+    - **Booking ID:** Unique identifier
+    - **Created:** Timestamp when booking was made
+    - **Updated:** Last modification timestamp
+  </Tab>
+</Tabs>
+
+### Understanding Booking Status
+
+<AccordionGroup>
+  <Accordion title="Status: 0 (Pending)">
+    **What it means:**
+    - Booking submitted successfully
+    - Awaiting admin review and confirmation
+    - You should be contacted within 24 hours
+    
+    **What you can do:**
+    - Edit booking details if needed
+    - Cancel if plans change
+    - Wait for confirmation communication
+  </Accordion>
+  <Accordion title="Status: 1 (Confirmed)">
+    **What it means:**
+    - Admin has reviewed and confirmed your booking
+    - Payment verified
+    - Safari is confirmed and scheduled
+    
+    **What you can do:**
+    - View final confirmed details
+    - Contact support for any changes (editing may be restricted)
+    - Prepare for your safari
+  </Accordion>
+</AccordionGroup>
+
+<Info>
+  Status is updated by admins through the `/bookings/confirm/{id}` route which toggles between 0 and 1.
+</Info>
+
+## Managing Individual Bookings
+
+### Viewing Booking Details
+
+**Route:** `/bookings/show/{id}`
+
+**Middleware:** `auth`, `verified`
+
+<Steps>
+  <Step title="Select Booking">
+    From your profile, click on any booking to view full details
+  </Step>
+  <Step title="Review Information">
+    The detail page shows all booking data:
+    - Complete traveler information
+    - Full travel details
+    - Transaction code
+    - Special requirements
+    - Booking timestamps
+    - Current status
+  </Step>
+</Steps>
+
+**Controller:** `BookingController::show(Booking $booking)`
+
+### Editing Bookings
+
+<Warning>
+  You can only edit pending bookings (status = 0). Confirmed bookings may require admin assistance to modify.
+</Warning>
+
+**Route:** `/bookings/edit/{id}`
+
+**Middleware:** `auth`, `verified`
+
+**Editable Fields:**
+
+<Tabs>
+  <Tab title="Personal Info">
+    - First name (required)
+    - Last name (required)
+    - Email (required)
+    - Phone number (required)
+  </Tab>
+  <Tab title="Travel Info">
+    - Arrival date (required)
+    - Number of adults (required)
+    - Number of kids (required)
+  </Tab>
+</Tabs>
+
+**Update Process:**
+
+<Steps>
+  <Step title="Access Edit Form">
+    Click edit on the booking from your profile or navigate to `/bookings/edit/{id}`
+  </Step>
+  <Step title="Modify Fields">
+    Update any information that needs changes
+  </Step>
+  <Step title="Submit Changes">
+    POST to `/bookings/update/{id}` with updated data
+  </Step>
+  <Step title="Confirmation">
+    Success message: "Booking updated successfully!"
+    
+    Redirects to the bookings admin page
+  </Step>
+</Steps>
+
+**Validation Rules:**
+```php
+$request->validate([
+    'first_name' => 'required',
+    'last_name' => 'required',
+    'email' => 'required',
+    'phone_number' => 'required',
+    'arrival_date' => 'required',
+    'adults' => 'required',
+    'kids' => 'required',
+]);
+```
+
+### Canceling Bookings
+
+**Route:** `/bookings/delete/{id}` (DELETE method)
+
+**Middleware:** `auth`, `verified`
+
+<Steps>
+  <Step title="Select Booking">
+    From your profile, choose the booking you want to cancel
+  </Step>
+  <Step title="Confirm Deletion">
+    Click the cancel/delete button
+  </Step>
+  <Step title="Booking Removed">
+    The booking is permanently deleted from the database
+    
+    Success message: "Booking deleted successfully!"
+  </Step>
+</Steps>
+
+**Controller:** `BookingController::destroy(Booking $booking, $id)`
+
+<Warning>
+  Deletion is permanent. The booking record is removed from the `tour_bookings` table and cannot be recovered.
+</Warning>
+
+<Tip>
+  If you need to cancel a confirmed booking, consider contacting support through `/enquiries` instead of deleting, as you may need records for refund processing.
+</Tip>
+
+## Account Information
+
+### User Model Data
+
+Your account is managed through the `User` model (`app/Models/User.php`):
+
+**Stored Information:**
+- `name` - Your full name
+- `email` - Email address (must be verified)
+- `email_verified_at` - Email verification timestamp
+- `password` - Securely hashed password
+- `remember_token` - For "Remember Me" functionality
+- `created_at` - Account creation date
+- `updated_at` - Last account update
+
+**User-Booking Relationship:**
+```php
+public function bookings()
+{
+    return $this->hasMany('App\Booking');
+}
+```
+
+This establishes that one user can have many bookings, all accessible through your profile.
+
+## Email Verification Status
+
+Your profile access depends on email verification:
+
+### Checking Verification
+
+**Route:** `/email/verify`
+
+**What You See:**
+- If verified: Full access to profile and booking features
+- If not verified: Verification notice with option to resend link
+
+### Resending Verification Email
+
+**Route:** `/email/verification-notification` (POST)
+
+**Middleware:** `auth`, throttled to 6 requests per minute
+
+<Steps>
+  <Step title="Request New Link">
+    If you didn't receive the original email, click "Resend verification link"
+  </Step>
+  <Step title="Check Email">
+    Look for email with verification link
+  </Step>
+  <Step title="Click Link">
+    Link format: `/email/verify/{id}/{hash}` with signed middleware
+  </Step>
+  <Step title="Auto-Redirect">
+    Upon verification, automatically redirected to home page
+  </Step>
+</Steps>
+
+<Info>
+  Message after resending: "Verification link sent!"
+</Info>
+
+## Profile Navigation
+
+### Related Pages
+
+<CardGroup cols={2}>
+  <Card title="Home" icon="house" href="/">
+    Return to main page (route: `/`)
+  </Card>
+  <Card title="Safaris" icon="binoculars" href="/user-guide/browsing-tours">
+    Browse more tours (route: `/safaris`)
+  </Card>
+  <Card title="New Booking" icon="plus">
+    Book another safari (route: `/bookings/create/{destination}`)
+  </Card>
+  <Card title="Help" icon="circle-question">
+    Get assistance (route: `/help`)
+  </Card>
+</CardGroup>
+
+## Pagination Controls
+
+If you have more than 10 bookings:
+
+- **Page Parameter:** `?page=2`, `?page=3`, etc.
+- **Items Per Page:** 10 bookings
+- **Ordering:** Latest bookings first
+- **Index Variable:** `(request()->input('page', 1) - 1) * 5` for proper numbering
+
+<Tip>
+  Use pagination controls at the bottom of your profile to navigate through older bookings.
+</Tip>
+
+## Security Features
+
+<AccordionGroup>
+  <Accordion title="User ID Filtering">
+    All booking queries filter by your `user_id`:
+    ```php
+    where('user_id', Auth::user()->id)
+    ```
+    This ensures you only see your own bookings, never other users' data.
+  </Accordion>
+  <Accordion title="Authentication Required">
+    Profile routes use `auth` middleware. You must be logged in with valid session to access.
+  </Accordion>
+  <Accordion title="Email Verification Required">
+    Profile routes use `verified` middleware. Your email must be verified to access booking features.
+  </Accordion>
+  <Accordion title="CSRF Protection">
+    All forms (edit, delete) include CSRF tokens to prevent cross-site request forgery attacks.
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Regular Checks" icon="calendar-check">
+    Check your profile regularly for booking status updates
+  </Card>
+  <Card title="Keep Info Current" icon="pen-to-square">
+    Update contact information if it changes before your safari
+  </Card>
+  <Card title="Save Transaction Codes" icon="bookmark">
+    Keep a record of transaction codes for all bookings
+  </Card>
+  <Card title="Early Modifications" icon="clock">
+    Edit bookings as soon as possible if changes are needed
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Can't Access Profile">
+    **Possible causes:**
+    - Not logged in → Login at `/login`
+    - Email not verified → Check email for verification link or resend at `/email/verification-notification`
+    - Session expired → Login again
+  </Accordion>
+  <Accordion title="Don't See My Bookings">
+    **Check:**
+    - Logged in with the correct account (bookings are user-specific)
+    - Booking was successfully submitted (check for confirmation message)
+    - Page number if you have many bookings (pagination)
+  </Accordion>
+  <Accordion title="Can't Edit Booking">
+    **Reasons:**
+    - Booking is already confirmed (status = 1) → Contact support
+    - Not logged in or session expired → Login again
+    - Trying to edit someone else's booking → Only your bookings are editable
+  </Accordion>
+  <Accordion title="Profile Loads Slowly">
+    **If you have many bookings:**
+    - System loads 10 at a time (pagination)
+    - Check your internet connection
+    - Large number of bookings loads latest first for better performance
+  </Accordion>
+</AccordionGroup>
+
+## Related Features
+
+<Card title="Search & Filters" icon="magnifying-glass" href="/user-guide/search-filters">
+  Learn about advanced search and filtering options
+</Card>
+
+<Note>
+  Your profile data is private and secure. Only you (when authenticated) and authorized admins can access your booking information.
+</Note>
