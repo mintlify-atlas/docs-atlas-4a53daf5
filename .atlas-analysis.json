@@ -1,0 +1,128 @@
+{
+  "projectType": "saas",
+  "projectName": "Safaris Web",
+  "projectDescription": "A comprehensive tour booking and safari management platform for Kenya tourism",
+  "theme": "palm",
+  "primaryColor": "#2D7A4C",
+  "lightColor": "#4CAF50",
+  "darkColor": "#1B5E34",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "system-requirements"
+            ]
+          },
+          {
+            "group": "User Guide",
+            "pages": [
+              "user-guide/browsing-tours",
+              "user-guide/making-bookings",
+              "user-guide/profile-management",
+              "user-guide/search-filters"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/tours-safaris",
+              "features/accommodations",
+              "features/events",
+              "features/services",
+              "features/blog-media"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Admin Guide",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "admin/overview",
+              "admin/authentication",
+              "admin/user-roles"
+            ]
+          },
+          {
+            "group": "Content Management",
+            "pages": [
+              "admin/managing-tours",
+              "admin/managing-bookings",
+              "admin/managing-blogs",
+              "admin/managing-videos",
+              "admin/managing-categories"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "admin/user-management",
+              "admin/enquiries",
+              "admin/publishing-workflow"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Setup",
+            "pages": [
+              "development/installation",
+              "development/configuration",
+              "development/database-setup"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "development/project-structure",
+              "development/models-relationships",
+              "development/routes-controllers"
+            ]
+          },
+          {
+            "group": "Customization",
+            "pages": [
+              "development/adding-features",
+              "development/blade-templates",
+              "development/middleware"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Safari and tour booking system",
+    "User authentication and email verification",
+    "Admin dashboard for content management",
+    "Multi-category tour organization",
+    "Accommodation and event management",
+    "Blog and video content platform",
+    "Enquiry and booking management",
+    "Search and filter functionality"
+  ],
+  "publicApiSurface": [
+    "HomeController@index - Main landing page",
+    "ToursController@safaris - Browse safaris",
+    "BookingController@create - Create tour booking",
+    "BookingController@store - Submit booking",
+    "BlogController@index - View blogs",
+    "CategoryController@index - Browse categories",
+    "AccomodationController@index - Browse accommodations",
+    "EventController@index - Browse events",
+    "ServiceController@index - Browse services",
+    "ProductController@index - Browse products",
+    "HomeController@search - Search tours"
+  ]
+}
